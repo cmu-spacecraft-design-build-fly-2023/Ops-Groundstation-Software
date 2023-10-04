@@ -18,8 +18,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <signal.h>
 #include "helpers/header.h"
 #define PORT 8080
+
+/* Function Prototypes */
+void client_sigint_handler(int sig);
 
 /**
  * main
@@ -38,7 +42,8 @@
 int main(int argc, char const* argv[])
 {
     /* Client configuration variables */
-    int status, valread, client_fd;
+    int status, client_fd;
+    ssize_t bytes_received_client;
     struct sockaddr_in serv_addr;
 
     /* Sent or received values */
@@ -50,6 +55,9 @@ int main(int argc, char const* argv[])
     send_head.sequence_flag = 0b11;
     send_head.sequence_count = 0;
     send_head.data_length = 100;
+
+    /* SIGINT Handler*/
+    signal(SIGINT, client_sigint_handler);
 
     /* Create client socket */
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -72,20 +80,49 @@ int main(int argc, char const* argv[])
         return -1;
     }
 
-    send(client_fd, &send_head, sizeof(send_head), 0);
-    printf("Initial header sent!\n\n");
-    valread = recv(client_fd, &send_head, sizeof(send_head),0);
-    
-    printf("Version number: %u\n",send_head.version_number);
-    printf("Packet type: %u\n",send_head.packet_type);
-    printf("Secondary header flag: %u\n",send_head.sec_header_flag);
-    printf("APID: %u\n",send_head.APID);
+    char cmd[50];
+    while(1) {
+        printf("Enter command: ");
+        fgets(cmd, 50, stdin);
 
-    printf("Sequence flag: %u\n",send_head.sequence_flag);
-    printf("Sequence count: %u\n",send_head.sequence_count);
-    printf("Data length: %u\n\n",send_head.data_length);
+        if (send(client_fd, &send_head, sizeof(send_head), 0) == -1) {
+            perror("Send failed");
+            break;
+        } 
+        else {
+            printf("Packet sent from cubesat!\n\n");
+        }
+
+        int bytes_received = recv(client_fd, &send_head, sizeof(send_head), 0);
+        if (bytes_received == -1) {
+            perror("Receive failed");
+            break;
+        } else if (bytes_received == 0) {
+            printf("Server closed the connection.\n");
+            break;
+        } else {
+            printf("Version number: %u\n",send_head.version_number);
+            printf("Packet type: %u\n",send_head.packet_type);
+            printf("Secondary header flag: %u\n",send_head.sec_header_flag);
+            printf("APID: %u\n",send_head.APID);
+
+            printf("Sequence flag: %u\n",send_head.sequence_flag);
+            printf("Sequence count: %u\n",send_head.sequence_count);
+            printf("Data length: %u\n\n",send_head.data_length);
+        }
+    }
   
     /* closing the connected socket */
     close(client_fd);
     return 0;
+}
+
+/**
+ * Function: client_sigint_handler
+ * 
+ * Purpose: Report SIGINT when CTRL-C is pressed.
+*/
+void client_sigint_handler(int sig) {
+    printf("Shutting down client!\n");
+    exit(0);
 }

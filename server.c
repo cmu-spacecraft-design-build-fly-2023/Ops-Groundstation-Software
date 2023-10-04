@@ -18,6 +18,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <signal.h>
 #include "helpers/header.h"
 #define PORT 8080
 
@@ -37,7 +38,8 @@
 */
 int main(int argc, char const* argv[]) {
     /* Server configuration variables */
-    int server_fd, new_socket, valread;
+    int server_fd, new_socket;
+    ssize_t bytes_received_server;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
@@ -76,21 +78,39 @@ int main(int argc, char const* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    valread = recv(new_socket, &rec_head, sizeof(rec_head),0);
-    printf("Version number: %u\n",rec_head.version_number);
-    printf("Packet type: %u\n",rec_head.packet_type);
-    printf("Secondary header flag: %u\n",rec_head.sec_header_flag);
-    printf("APID: %u\n",rec_head.APID);
+    /* Loop and wait for message from client (Cubesat) */
+    while(1) {
 
-    printf("Sequence flag: %u\n",rec_head.sequence_flag);
-    printf("Sequence count: %u\n",rec_head.sequence_count);
-    printf("Data length: %u\n\n",rec_head.data_length);
+        /* Get message */
+        bytes_received_server = recv(new_socket, &rec_head, sizeof(rec_head),0);
 
-    rec_head.APID += 10;
-    rec_head.data_length += 100;
-    
-    send(new_socket, &rec_head, sizeof(rec_head), 0);
-    printf("Header sent back to client!\n\n");
+        /**
+         *  If message is received, unpack and report data. 
+         *  If client closed session, break.
+         *  Else, reloop and check again.
+        */
+        if (bytes_received_server > 0) {
+            printf("Packet received at ground station!\n\n");
+
+            printf("Version number: %u\n",rec_head.version_number);
+            printf("Packet type: %u\n",rec_head.packet_type);
+            printf("Secondary header flag: %u\n",rec_head.sec_header_flag);
+            printf("APID: %u\n",rec_head.APID);
+
+            printf("Sequence flag: %u\n",rec_head.sequence_flag);
+            printf("Sequence count: %u\n",rec_head.sequence_count);
+            printf("Data length: %u\n\n",rec_head.data_length);
+
+            rec_head.APID += 10;
+            rec_head.data_length += 100;
+            
+            send(new_socket, &rec_head, sizeof(rec_head), 0);
+            printf("Packet sent pack to cubesat!\n\n");
+        } 
+        else if (bytes_received_server == 0) {
+            break;
+        }
+    }
   
     /* closing the connected socket */
     close(new_socket);
