@@ -37,7 +37,7 @@
 int main() {
     header rec_header;
     message rec_msg;
-    signal rec_signal;
+    msg_signal rec_signal;
 
     rec_header.APID = 20;
     strncpy(rec_signal.signal_name, "vCell_1", sizeof(rec_signal.signal_name));
@@ -55,10 +55,10 @@ int main() {
  * Returns the message name and message length based on the APID. 
  * 
  * Inputs:
- *  cube_header - Received header containing the APID
+ *  @param: cube_header - Received header containing the APID
  * 
  * Outputs
- *  cube_msg - Messaged information such as message name and length
+ *  @param: cube_msg - Messaged information such as message name and length
  * 
  * @return: 
  *  -1 == Error
@@ -141,10 +141,10 @@ int get_payload_message(header cube_header, message* cube_msg) {
  * Returns the signal start and end bits based on the signal name. 
  * 
  * Inputs:
- *  cube_msg - Message which contains the lookup signal. 
+ *  @param: cube_msg - Message which contains the lookup signal. 
  * 
  * Outputs
- *  cube_signal - Signal information such as start bit and end bit
+ *  @param: cube_signal - Signal information such as start bit and end bit
  * 
  * @return: 
  *  -1 == Error
@@ -153,7 +153,7 @@ int get_payload_message(header cube_header, message* cube_msg) {
  * 
  * Saved States: NONE
 */
-int get_start_end(message cube_msg, signal* cube_signal) {
+int get_start_end(message cube_msg, msg_signal* cube_signal) {
     
     /* SQL variable declaration */
     sqlite3 *db;

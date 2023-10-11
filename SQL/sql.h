@@ -9,6 +9,6 @@
 
 /* ---------- Function Prototypes ---------- */
 int get_payload_message(header cube_header, message* cube_msg);
-int get_start_end(message cube_msg, signal* cube_signal);
+int get_start_end(message cube_msg, msg_signal* cube_signal);
 
 #endif

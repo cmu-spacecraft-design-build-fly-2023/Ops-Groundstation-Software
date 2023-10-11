@@ -13,6 +13,8 @@ typedef struct payload_message {
 typedef struct signal_information {
     char signal_name[128];
     uint16_t start_bit, end_bit, factor, offset;
-} signal;
+} msg_signal;
+
+enum byte_alignment { zero_aligned = 0, byte_aligned = 8};
 
 #endif
