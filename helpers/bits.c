@@ -2,11 +2,12 @@
 #include <string.h> 
 #include <stdint.h>
 #include <stdlib.h>
-#include "helpers/payload.h"
+#include "../helpers/payload.h"
 
 /* Function Prototypes */
-void pack_payload(uint8_t array[], uint32_t sig, message send_msg, msg_signal send_sig);
 uint8_t extractBits(uint32_t value, uint16_t startBit, uint16_t numBits);
+void pack_payload(uint8_t array[], uint32_t sig, msg_signal send_sig);
+uint32_t unpack_payload(uint8_t array[], msg_signal send_sig);
  
 int main() {
    /* Array Pointer */
@@ -34,13 +35,20 @@ int main() {
 
    ptr = (uint8_t*)calloc(send_msg.message_length, sizeof(uint8_t));
 
-   pack_payload(ptr,dummy1,send_msg,send_sig1);
-   pack_payload(ptr,dummy2,send_msg,send_sig2);
-   pack_payload(ptr,dummy3,send_msg,send_sig3);
+   pack_payload(ptr,dummy1,send_sig1);
+   pack_payload(ptr,dummy2,send_sig2);
+   pack_payload(ptr,dummy3,send_sig3);
 
    for (int i = 0; i < send_msg.message_length; i++) {
       printf("%u\n",ptr[i]);
    }
+
+   uint8_t unpack1 = (uint8_t)unpack_payload(ptr, send_sig1);
+   uint16_t unpack2 = (uint16_t)unpack_payload(ptr, send_sig2);
+   uint8_t unpack3 = (uint8_t)unpack_payload(ptr, send_sig3);
+
+   printf("%u - %u - %u\n",unpack1,unpack2,unpack3);
+
    free(ptr);
 
    return 0;
@@ -81,7 +89,7 @@ uint8_t extractBits(uint32_t value, uint16_t startBit, uint16_t numBits) {
  * 
  * @return NONE
 */
-void pack_payload(uint8_t array[], uint32_t sig, message send_msg, msg_signal send_sig) {
+void pack_payload(uint8_t array[], uint32_t sig, msg_signal send_sig) {
    /* Amount of data that still needs packed */
    uint16_t pack_remaining = (send_sig.end_bit - send_sig.start_bit) + 1;
    /* Bit position of pack index */
@@ -136,4 +144,80 @@ void pack_payload(uint8_t array[], uint32_t sig, message send_msg, msg_signal se
          pack_position += modified_bits;
       }
    }
+}
+
+/**
+ * @name: unpack_payload
+ * 
+ * @details: Inputs the payload array and outputs a signal based on the 
+ *           start and end bit indices of the signal. 
+ * 
+ * Inputs
+ *    @param array: Payload array
+ *    @param sig: Pointer to signal being unpacked from the payload array
+ *    @param send_sig: Information about the signal being packed.w
+ *                     Includes the start and end bit indices. 
+ * 
+ * Outputs
+ *    @param sig: Pointer to signal being unpacked
+ * 
+ * @return NONE
+*/
+uint32_t unpack_payload(uint8_t array[], msg_signal send_sig) {
+   uint32_t fetched_sig = 0;
+   /* Amount of data that still needs packed */
+   uint16_t unpack_remaining = (send_sig.end_bit - send_sig.start_bit) + 1;
+   /* Bit position of pack index */
+   uint16_t pack_position = send_sig.end_bit;
+
+   while (unpack_remaining > 0) {
+      uint16_t start_byte = pack_position/byte_aligned;
+      uint16_t end_byte = send_sig.start_bit/byte_aligned;
+
+      if (start_byte == end_byte) {
+
+         if (unpack_remaining < 8) {
+            // Extract remaining bytes
+            fetched_sig += extractBits(array[start_byte], ((pack_position % byte_aligned) - unpack_remaining + 1), unpack_remaining);
+
+            // Decrement the bits remaining
+            // Decrement the bits index
+            pack_position -= unpack_remaining;
+            unpack_remaining -= unpack_remaining;
+         } 
+         else {
+            // Extract remaining bytes
+            // Set bit zero as lower bound
+            fetched_sig += extractBits(array[start_byte], 0, unpack_remaining);
+
+            // Don't let pack position underflow out of precaution
+            // Decrement the bits remaining
+            pack_position = 0;
+            unpack_remaining -= unpack_remaining;
+         }
+      } 
+      else {
+         // Get number of bits that will not be modified
+         // and the number that will not be modified.
+         uint8_t unpack_bits = (pack_position % byte_aligned) + 1;
+         uint8_t fluff_bits = byte_aligned - unpack_bits;
+
+         // Extract the packed bits of array[i]
+         uint8_t lower_bits_array = extractBits(array[start_byte], 0, unpack_bits);
+
+         // Decrement the bits remaining
+         // Decrement the bits index
+         unpack_remaining -= unpack_bits;
+         pack_position -= unpack_bits;
+
+         // Add in bits of var, shift, and add in static bits
+         if (unpack_remaining >= 8) {
+            fetched_sig = (fetched_sig + lower_bits_array) << byte_aligned;
+         }
+         else {
+            fetched_sig = (fetched_sig + lower_bits_array) << unpack_remaining;
+         }
+      }
+   }
+   return fetched_sig;
 }
