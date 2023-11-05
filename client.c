@@ -46,8 +46,8 @@ int main(int argc, char const* argv[])
     int status, client_fd;
     ssize_t bytes_received_client;
     struct sockaddr_in serv_addr;
-    ssize_t header_received = -1;
-    ssize_t message_received = -1;
+    ssize_t payload_received_client = -1;
+    uint8_t message_buf[256] = {0};
 
     /* Sent or received values */
     space_payload my_payload;
@@ -64,7 +64,7 @@ int main(int argc, char const* argv[])
     msg_signal test_sig1;
     test_sig1.start_bit = 0;
     test_sig1.end_bit = 7;
-    uint8_t dummy1 = 0b00000011;
+    uint8_t dummy1 = 0b00000000;
 
     pack_payload(my_payload.message_payload.message_ptr,dummy1,test_sig1);
 
@@ -97,16 +97,11 @@ int main(int argc, char const* argv[])
         printf("Enter command: ");
         fgets(cmd, 50, stdin);
 
+        memcpy(message_buf, &my_payload.header_payload, sizeof(my_payload.header_payload));
+        memcpy(message_buf+sizeof(my_payload.header_payload),my_payload.message_payload.message_ptr,my_payload.header_payload.data_length);
+
         // Send header
-        if (send(client_fd, &my_payload.header_payload, sizeof(my_payload.header_payload), 0) == -1) {
-            perror("Send failed");
-            break;
-        } 
-        else {
-            printf("Header sent from cubesat!\n\n");
-        }
-        // Then send payload
-        if (send(client_fd, my_payload.message_payload.message_ptr, my_payload.header_payload.data_length, 0) == -1) {
+        if (send(client_fd, message_buf, sizeof(my_payload.header_payload)+my_payload.header_payload.data_length, 0) == -1) {
             perror("Send failed");
             break;
         } 
@@ -115,23 +110,19 @@ int main(int argc, char const* argv[])
         }
 
         // Get response from groundstation
-        for (int i = 0; i<2; i++) { 
-            if (i == 0) {
-                header_received = recv(client_fd, &my_payload.header_payload, sizeof(my_payload.header_payload), 0);
-            }
-            else if (i == 1) {
-                message_received = recv(client_fd, my_payload.message_payload.message_ptr, my_payload.header_payload.data_length, 0);
-            }
-        } 
+        payload_received_client = recv(client_fd, message_buf, sizeof(message_buf), 0);
 
         // Display Header Information
-        if (header_received == -1) {
+        if (payload_received_client == -1) {
             perror("Receive header failed");
             break;
-        } else if (header_received == 0) {
+        } else if (payload_received_client == 0) {
             printf("Server closed the connection.\n");
             break;
         } else {
+            memcpy(&my_payload.header_payload, message_buf, sizeof(my_payload.header_payload));
+            memcpy(my_payload.message_payload.message_ptr, message_buf+sizeof(my_payload.header_payload), my_payload.header_payload.data_length);
+
             printf("Version number: %u\n",my_payload.header_payload.version_number);
             printf("Packet type: %u\n",my_payload.header_payload.packet_type);
             printf("Secondary header flag: %u\n",my_payload.header_payload.sec_header_flag);
@@ -139,17 +130,8 @@ int main(int argc, char const* argv[])
 
             printf("Sequence flag: %u\n",my_payload.header_payload.sequence_flag);
             printf("Sequence count: %u\n",my_payload.header_payload.sequence_count);
-            printf("Data length: %u\n\n",my_payload.header_payload.data_length);
-        }
+            printf("Data length: %u\n",my_payload.header_payload.data_length);
 
-         // Display Message Information
-        if (message_received == -1) {
-            perror("Receive failed");
-            break;
-        } else if (message_received == 0) {
-            printf("Server closed the connection.\n");
-            break;
-        } else {
             dummy1 = (uint8_t)unpack_payload(my_payload.message_payload.message_ptr, test_sig1);
             printf("Message: %u\n\n",dummy1);
         }

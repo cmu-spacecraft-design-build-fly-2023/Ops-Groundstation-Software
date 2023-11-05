@@ -40,11 +40,11 @@
 int main(int argc, char const* argv[]) {
     /* Server configuration variables */
     int server_fd, new_socket;
-    ssize_t header_received_server;
-    ssize_t message_received_server;
+    ssize_t payload_received_server;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
+    uint8_t message_buf[256];
 
     /* Sent or received values */
     space_payload rec_payload;
@@ -88,22 +88,20 @@ int main(int argc, char const* argv[]) {
     while(1) {
 
         // Get complete payload from Cubesat //
-        for (int i = 0; i<2; i++) { 
-            if (i == 0) {
-                header_received_server = recv(new_socket, &rec_payload.header_payload, sizeof(rec_payload.header_payload),0);
-            }
-            else if (i == 1) {
-                message_received_server = recv(new_socket, &rec_payload.header_payload, sizeof(rec_payload.header_payload),0);
-            }
-        }
-
+        payload_received_server = recv(new_socket, message_buf, sizeof(message_buf),0);
+    
         /**
          *  If message is received, unpack and report data. 
          *  If client closed session, break.
          *  Else, reloop and check again.
         */
-        if (header_received_server > 0) {
-            printf("Packet received at ground station!\n\n");
+        if (payload_received_server > 0) {
+            printf("Packet received at ground station!\n");
+
+            rec_payload.message_payload.message_ptr = (uint8_t*)malloc(rec_payload.header_payload.data_length);
+
+            memcpy(&rec_payload.header_payload, message_buf, sizeof(rec_payload.header_payload));
+            memcpy(rec_payload.message_payload.message_ptr, message_buf+sizeof(rec_payload.header_payload), rec_payload.header_payload.data_length);
 
             printf("Version number: %u\n",rec_payload.header_payload.version_number);
             printf("Packet type: %u\n",rec_payload.header_payload.packet_type);
@@ -112,29 +110,22 @@ int main(int argc, char const* argv[]) {
 
             printf("Sequence flag: %u\n",rec_payload.header_payload.sequence_flag);
             printf("Sequence count: %u\n",rec_payload.header_payload.sequence_count);
-            printf("Data length: %u\n\n",rec_payload.header_payload.data_length);
+            printf("Data length: %u\n",rec_payload.header_payload.data_length);
 
-            send(new_socket, &rec_payload.header_payload, sizeof(rec_payload.header_payload), 0);
-            printf("Header sent pack to cubesat!\n\n");
-        } 
-        else if (header_received_server == 0) {
-            break;
-        }
-
-        if (message_received_server > 0) {
-            rec_payload.message_payload.message_ptr = (uint8_t*)malloc(rec_payload.header_payload.data_length);
             rec_dummy = unpack_payload(rec_payload.message_payload.message_ptr,rec_sig1);
             printf("Message Contents: %u\n\n",rec_dummy);
+            pack_payload(rec_payload.message_payload.message_ptr,rec_dummy+1,rec_sig1);
 
-            rec_dummy = (uint8_t)(rec_dummy + 1);
+            memcpy(message_buf, &rec_payload.header_payload, sizeof(rec_payload.header_payload));
+            memcpy(message_buf+sizeof(rec_payload.header_payload), rec_payload.message_payload.message_ptr, rec_payload.header_payload.data_length);
             
-            send(new_socket, rec_payload.message_payload.message_ptr, rec_payload.header_payload.data_length, 0);
+            send(new_socket, message_buf, sizeof(rec_payload.header_payload)+rec_payload.header_payload.data_length, 0);
             printf("Message sent back to cubesat!\n\n");
 
             /* Free memory */
             free(rec_payload.message_payload.message_ptr);
         } 
-        else if (message_received_server == 0) {
+        else if (payload_received_server == 0) {
             break;
         }
     }
