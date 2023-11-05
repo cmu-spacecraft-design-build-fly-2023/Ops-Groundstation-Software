@@ -3,41 +3,43 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "../helpers/payload.h"
-
-/* Function Prototypes */
-uint8_t extractBits(uint32_t value, uint16_t startBit, uint16_t numBits);
-void pack_payload(uint8_t array[], uint32_t sig, msg_signal send_sig);
-uint32_t unpack_payload(uint8_t array[], msg_signal send_sig);
  
+ /* 
 int main() {
-   /* Array Pointer */
+   // Array Pointer //
    uint8_t* ptr;
 
-   /* Message struct */
+   // Message struct //
    message send_msg;
-   send_msg.message_length = 3;
+   send_msg.message_length = 4;
 
-   /* Signal struct */
+   // Signal struct //
    msg_signal send_sig1;
    send_sig1.start_bit = 0;
-   send_sig1.end_bit = 3;
-   uint8_t dummy1 = 0b1010;
+   send_sig1.end_bit = 7;
+   uint8_t dummy1 = 0b11111010;
 
    msg_signal send_sig2;
-   send_sig2.start_bit = 4;
+   send_sig2.start_bit = 8;
    send_sig2.end_bit = 19;
-   uint16_t dummy2 = 0b0000111111110000;
+   uint16_t dummy2 = 0b111111110000;
 
    msg_signal send_sig3;
    send_sig3.start_bit = 20;
-   send_sig3.end_bit = 23;
-   uint8_t dummy3 = 0b1100;
+   send_sig3.end_bit = 27;
+   uint8_t dummy3 = 0b11001100;
+
+   msg_signal send_sig4;
+   send_sig4.start_bit = 28;
+   send_sig4.end_bit = 31;
+   uint8_t dummy4 = 0b0011;
 
    ptr = (uint8_t*)calloc(send_msg.message_length, sizeof(uint8_t));
 
    pack_payload(ptr,dummy1,send_sig1);
    pack_payload(ptr,dummy2,send_sig2);
    pack_payload(ptr,dummy3,send_sig3);
+   pack_payload(ptr,dummy4,send_sig4);
 
    for (int i = 0; i < send_msg.message_length; i++) {
       printf("%u\n",ptr[i]);
@@ -46,13 +48,14 @@ int main() {
    uint8_t unpack1 = (uint8_t)unpack_payload(ptr, send_sig1);
    uint16_t unpack2 = (uint16_t)unpack_payload(ptr, send_sig2);
    uint8_t unpack3 = (uint8_t)unpack_payload(ptr, send_sig3);
+   uint8_t unpack4 = (uint8_t)unpack_payload(ptr, send_sig4);
 
-   printf("%u - %u - %u\n",unpack1,unpack2,unpack3);
+   printf("%u - %u - %u - %u\n",unpack1,unpack2,unpack3, unpack4);
 
    free(ptr);
 
    return 0;
-}
+} */
 
 /**
  * @name: extractedBits
@@ -81,7 +84,6 @@ uint8_t extractBits(uint32_t value, uint16_t startBit, uint16_t numBits) {
  * Inputs
  *    @param array: Payload array
  *    @param sig: Signal being packed into the payload array
- *    @param send_msg: Information about the message being sent
  *    @param send_sig: Information about the signal being packed
  * 
  * Outputs
@@ -154,25 +156,23 @@ void pack_payload(uint8_t array[], uint32_t sig, msg_signal send_sig) {
  * 
  * Inputs
  *    @param array: Payload array
- *    @param sig: Pointer to signal being unpacked from the payload array
- *    @param send_sig: Information about the signal being packed.w
+ *    @param rec_sig: Information about the signal being packed.w
  *                     Includes the start and end bit indices. 
  * 
  * Outputs
- *    @param sig: Pointer to signal being unpacked
- * 
+ *    NONE
  * @return NONE
 */
-uint32_t unpack_payload(uint8_t array[], msg_signal send_sig) {
+uint32_t unpack_payload(uint8_t array[], msg_signal rec_sig) {
    uint32_t fetched_sig = 0;
    /* Amount of data that still needs packed */
-   uint16_t unpack_remaining = (send_sig.end_bit - send_sig.start_bit) + 1;
+   uint16_t unpack_remaining = (rec_sig.end_bit - rec_sig.start_bit) + 1;
    /* Bit position of pack index */
-   uint16_t pack_position = send_sig.end_bit;
+   uint16_t pack_position = rec_sig.end_bit;
 
    while (unpack_remaining > 0) {
       uint16_t start_byte = pack_position/byte_aligned;
-      uint16_t end_byte = send_sig.start_bit/byte_aligned;
+      uint16_t end_byte = rec_sig.start_bit/byte_aligned;
 
       if (start_byte == end_byte) {
 

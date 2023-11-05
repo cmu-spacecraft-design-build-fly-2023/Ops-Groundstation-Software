@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <signal.h>
 #include "helpers/header.h"
+#include "helpers/payload.h"
 #define PORT 8080
 
 /**
@@ -39,13 +40,18 @@
 int main(int argc, char const* argv[]) {
     /* Server configuration variables */
     int server_fd, new_socket;
-    ssize_t bytes_received_server;
+    ssize_t header_received_server;
+    ssize_t message_received_server;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
 
     /* Sent or received values */
-    header rec_head;
+    space_payload rec_payload;
+    msg_signal rec_sig1;
+    rec_sig1.start_bit = 0;
+    rec_sig1.end_bit = 7;
+    uint8_t rec_dummy;
   
     /* Creating socket file descriptor */
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -81,33 +87,54 @@ int main(int argc, char const* argv[]) {
     /* Loop and wait for message from client (Cubesat) */
     while(1) {
 
-        /* Get message */
-        bytes_received_server = recv(new_socket, &rec_head, sizeof(rec_head),0);
+        // Get complete payload from Cubesat //
+        for (int i = 0; i<2; i++) { 
+            if (i == 0) {
+                header_received_server = recv(new_socket, &rec_payload.header_payload, sizeof(rec_payload.header_payload),0);
+            }
+            else if (i == 1) {
+                message_received_server = recv(new_socket, &rec_payload.header_payload, sizeof(rec_payload.header_payload),0);
+            }
+        }
 
         /**
          *  If message is received, unpack and report data. 
          *  If client closed session, break.
          *  Else, reloop and check again.
         */
-        if (bytes_received_server > 0) {
+        if (header_received_server > 0) {
             printf("Packet received at ground station!\n\n");
 
-            printf("Version number: %u\n",rec_head.version_number);
-            printf("Packet type: %u\n",rec_head.packet_type);
-            printf("Secondary header flag: %u\n",rec_head.sec_header_flag);
-            printf("APID: %u\n",rec_head.APID);
+            printf("Version number: %u\n",rec_payload.header_payload.version_number);
+            printf("Packet type: %u\n",rec_payload.header_payload.packet_type);
+            printf("Secondary header flag: %u\n",rec_payload.header_payload.sec_header_flag);
+            printf("APID: %u\n",rec_payload.header_payload.APID);
 
-            printf("Sequence flag: %u\n",rec_head.sequence_flag);
-            printf("Sequence count: %u\n",rec_head.sequence_count);
-            printf("Data length: %u\n\n",rec_head.data_length);
+            printf("Sequence flag: %u\n",rec_payload.header_payload.sequence_flag);
+            printf("Sequence count: %u\n",rec_payload.header_payload.sequence_count);
+            printf("Data length: %u\n\n",rec_payload.header_payload.data_length);
 
-            rec_head.APID += 10;
-            rec_head.data_length += 100;
-            
-            send(new_socket, &rec_head, sizeof(rec_head), 0);
-            printf("Packet sent pack to cubesat!\n\n");
+            send(new_socket, &rec_payload.header_payload, sizeof(rec_payload.header_payload), 0);
+            printf("Header sent pack to cubesat!\n\n");
         } 
-        else if (bytes_received_server == 0) {
+        else if (header_received_server == 0) {
+            break;
+        }
+
+        if (message_received_server > 0) {
+            rec_payload.message_payload.message_ptr = (uint8_t*)malloc(rec_payload.header_payload.data_length);
+            rec_dummy = unpack_payload(rec_payload.message_payload.message_ptr,rec_sig1);
+            printf("Message Contents: %u\n\n",rec_dummy);
+
+            rec_dummy = (uint8_t)(rec_dummy + 1);
+            
+            send(new_socket, rec_payload.message_payload.message_ptr, rec_payload.header_payload.data_length, 0);
+            printf("Message sent back to cubesat!\n\n");
+
+            /* Free memory */
+            free(rec_payload.message_payload.message_ptr);
+        } 
+        else if (message_received_server == 0) {
             break;
         }
     }
