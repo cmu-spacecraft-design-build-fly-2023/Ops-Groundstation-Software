@@ -23,6 +23,14 @@ typedef struct lora_Packet { //data structure for storing a packet
     bool crc;//true for success, false for failure. Can read values if true.
 } Packet;
 
+// ========== ENUMS ========== //
+enum GPIO_ASSIGN {
+    nss = 8,
+    dio0 = 19,
+    dio5 = 16,
+    rfm_rst = 12
+};
+
 // ========== Functions ========== // 
 // Globals library set
 void RFMLib(uint8_t nss, uint8_t dio0, uint8_t dio5, uint8_t rfm_rst);

@@ -3,23 +3,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-volatile bool rfm_done;
-uint8_t rfm_status;//0=idle,1=tx,2=rx
+static volatile bool rfm_done;
+static uint8_t rfm_status;//0=idle,1=tx,2=rx
 
 //Set to true to enable high frequency mode
-bool high_frequency = false;
-const uint32_t Fosc = 32000000;
-uint8_t nss, dio0, dio5, rfm_rst;//pins - to be assigned at instantiation.
+static const uint8_t high_frequency = false;
+static const uint32_t Fosc = 32000000;
 
 void RFMLib(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
-    // Chip Select - GPIO8
-    nss = a;
-    // DIO0 - GPIO19
-    dio0 = b;
-    // DIO5 - GPIO16
-    dio5 = c;
-    // RFM_RST - GPIO12
-    rfm_rst = d;
     rfm_done = false;
     rfm_status = 0;
 }
