@@ -214,3 +214,7 @@ void brRFM(uint8_t ad, uint8_t vals[], uint8_t len) { //burst read
     bcm2835_spi_transfernb(val_buf_tx, vals, sizeof(val_buf_tx));
     bcm2835_gpio_write(nss, 1);
 }
+
+uint8_t bitRead(uint8_t x, uint8_t n) {
+    return (x >> n) & 0b1;
+}

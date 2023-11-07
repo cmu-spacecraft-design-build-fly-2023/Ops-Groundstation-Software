@@ -49,5 +49,7 @@ void brRFM(uint8_t ad, uint8_t vals[], uint8_t len);
 uint8_t getVersion();
 // Single byte read
 uint8_t rRFM(uint8_t ad);
+// Arduino Bit Read
+uint8_t bitRead(uint8_t x, uint8_t n);
 
 #endif
