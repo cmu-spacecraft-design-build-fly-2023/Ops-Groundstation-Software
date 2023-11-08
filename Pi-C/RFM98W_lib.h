@@ -14,6 +14,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+static volatile bool rfm_done = false;
+static uint8_t rfm_status = 0; //0=idle,1=tx,2=rx
+
+//Set to true to enable high frequency mode
+static const uint8_t high_frequency = false;
+static const uint32_t Fosc = 32000000;
+
 // ========== Structs ========== // 
 typedef struct lora_Packet { //data structure for storing a packet
     uint8_t len;
@@ -32,8 +39,6 @@ enum GPIO_ASSIGN {
 };
 
 // ========== Functions ========== // 
-// Globals library set
-void RFMLib(uint8_t nss, uint8_t dio0, uint8_t dio5, uint8_t rfm_rst);
 // Configure radio module
 void configure(uint8_t config[6]);
 // Set the radio frequency to a given value in Hz
