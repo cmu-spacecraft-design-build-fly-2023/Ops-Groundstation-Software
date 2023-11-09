@@ -14,12 +14,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-static volatile bool rfm_done = false;
-static uint8_t rfm_status = 0; //0=idle,1=tx,2=rx
-
 //Set to true to enable high frequency mode
-static const uint8_t high_frequency = false;
+static const uint8_t high_frequency = 0;
 static const uint32_t Fosc = 32000000;
+static const uint32_t Fstep = Fosc / 524288;
 
 // ========== Structs ========== // 
 typedef struct lora_Packet { //data structure for storing a packet
@@ -44,13 +42,13 @@ void configure(uint8_t config[6]);
 // Set the radio frequency to a given value in Hz
 void setFrequency(uint32_t frequency);
 // Begin transmit
-void beginTX(Packet tx);
+void beginTX(Packet tx, bool* rfm_done, uint8_t* rfm_status);
 // End transmit
-void endTX();
+void endTX(bool* rfm_done, uint8_t* rfm_status);
 // Begin receive
-void beginRX();
+void beginRX(bool* rfm_done, uint8_t* rfm_status);
 // End receive
-void endRX(Packet* received);
+void endRX(Packet* received, bool* rfm_done, uint8_t* rfm_status);
 // Change radio
 void radioMode(uint8_t m);//set the mode of the radio
 

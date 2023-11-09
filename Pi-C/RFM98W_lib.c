@@ -2,6 +2,7 @@
 #include <bcm2835.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 void configure(uint8_t config[6]){
     bcm2835_gpio_fsel(nss, BCM2835_GPIO_FSEL_OUTP);
@@ -12,10 +13,12 @@ void configure(uint8_t config[6]){
         bcm2835_gpio_write(rfm_rst, 1);
     }
 
-    // Set RPI GPIO19 or DIO0
+    // Set RPI pin to be an input
     bcm2835_gpio_fsel(dio0, BCM2835_GPIO_FSEL_INPT);
-    //  with a pulldown
+    //  with a puldown
     bcm2835_gpio_set_pud(dio0, BCM2835_GPIO_PUD_DOWN);
+    // And a rising edge detect enable
+    bcm2835_gpio_ren(dio0);
 
     if(dio5!=255) {
         // Set RPI GPIO16 or DIO5
@@ -24,13 +27,36 @@ void configure(uint8_t config[6]){
         bcm2835_gpio_set_pud(dio5, BCM2835_GPIO_PUD_DOWN);
     }
 
+    // Set radio mode to long range
     radioMode(0);
-    wRFM(0x1D,config[0]);
-    wRFM(0x1E,config[1]);//modem config registers
-    wRFM(0x09,config[2]);//use PA_BOOST - even at the same power setting
-    //it seems to give a stronger RSSI.
 
-    //Use setFrequency for frequency adjustment
+    // Set Tx and Rx base address
+    wRFM(0x0E,0);
+    wRFM(0x0F,0);
+     if ((rRFM(0x0E) == 0) && (rRFM(0x0E) == 0)) {
+        printf("LoRa base addresses set\n");
+    }
+
+    // Set radio mode to stadby
+    radioMode(1);
+
+    // Set Modem config
+    wRFM(0x1D,config[0]); // Modem congif1
+    wRFM(0x1E,config[1]); // Modem config2
+    wRFM(0x26,config[2]); // Modem config3
+    if ((rRFM(0x1D)==config[0]) && (rRFM(0x1E)==config[1]) && (rRFM(0x26)==config[2])) {
+        printf("Modem configured properly!\n");
+    }
+
+    // Set preamble
+    wRFM(0x20,0);
+    wRFM(0x21,8);
+    if ((rRFM(0x20)==0) && (rRFM(0x21)==8)) {
+        printf("Preamble set properly!\n");
+    }
+
+    // Use setFrequency for frequency adjustment
+    setFrequency(915);
 
     //wRFM(0x07,config[3]);//freq to 434.7MHz - mid SB
     //wRFM(0x08,config[4]);//freq -LSB
@@ -38,21 +64,21 @@ void configure(uint8_t config[6]){
 }
 
 void setFrequency(uint32_t frequency) {
-    uint32_t freqVal = ((uint64_t)(frequency) << 19ULL) / Fosc;
-
-    wRFM(0x06, (freqVal >> 16) & 0xFF);
-    wRFM(0x07, (freqVal >> 8) & 0xFF);
-    wRFM(0x08, (freqVal) & 0xFF);
-
+    uint32_t freqVal = (frequency * 1000000) / Fstep;
+    wRFM(0x06, (freqVal >> 16) & 0xFF); // MSB
+    wRFM(0x07, (freqVal >> 8) & 0xFF); // MID
+    wRFM(0x08, (freqVal) & 0xFF); // LSB
+    uint32_t getfreq = (((uint32_t)rRFM(0x06)) << 16) + (((uint32_t)rRFM(0x07)) << 8) + ((uint32_t)rRFM(0x08));
+    printf("%u\n",(getfreq*Fstep)/1000000);
 }
 
 uint8_t getVersion() {
     return rRFM(0x42);
 }
 
-void beginRX(){
-    rfm_status = 2;
-    rfm_done = false;
+void beginRX(bool* rfm_done, uint8_t* rfm_status){
+    *rfm_status = 2;
+    *rfm_done = false;
     radioMode(1);
     wRFM(0x12,255);//reset IRQ
     wRFM(0x0D,rRFM(0x0F));//set RX base address
@@ -61,9 +87,9 @@ void beginRX(){
     //You need to attach an interrupt function which sets this object's "rfm_done" bool to TRUE on a RISING interrupt on DIO0
 }
 
-void endRX(Packet* received){//function to be called on, or soon after, reception of RX_DONE interrupt
-    rfm_done = false;
-    rfm_status = 0;
+void endRX(Packet* received, bool* rfm_done, uint8_t* rfm_status){//function to be called on, or soon after, reception of RX_DONE interrupt
+    *rfm_done = false;
+    *rfm_status = 0;
     radioMode(1);//stby
     uint8_t len = rRFM(0x13);//length of packet
     (*received).len = len;
@@ -93,17 +119,17 @@ void endRX(Packet* received){//function to be called on, or soon after, receptio
     wRFM(0x12,255);//clear IRQ again.
 }
 
-void endTX() {//function to be called at the end of transmission; cleans up.
-    rfm_status = 0;
-    rfm_done = false;
+void endTX(bool* rfm_done, uint8_t* rfm_status) {//function to be called at the end of transmission; cleans up.
+    *rfm_status = 0;
+    *rfm_done = false;
     radioMode(1);//stby
     wRFM(0x12,255);//clear IRQ
     radioMode(0);//sleep
 }
 
-void beginTX(Packet transmit_pkt){
-    rfm_status = 1;
-    rfm_done = false;
+void beginTX(Packet transmit_pkt, bool* rfm_done, uint8_t* rfm_status){
+    *rfm_status = 1;
+    *rfm_done = false;
     radioMode(1);//stby
     wRFM(0x12,255);//clear IRQ
 
@@ -128,18 +154,33 @@ void radioMode(uint8_t m){//set specified mode
     switch(m){
         case 0://sleep
             wRFM(0x01,0x80 | (high_frequency << 3));
+            if (rRFM(0x01) == (0x80 | (high_frequency << 3))) {
+                printf("LoRa radio mode set to sleep!\n");
+            }
             break;
         case 1://stby
             wRFM(0x01,0x81 | (high_frequency << 3));
+            if (rRFM(0x01) == (0x81 | (high_frequency << 3))) {
+                 printf("LoRa radio mode set to standby!\n");
+            }
             break;
         case 2://rx cont
             wRFM(0x01,0x85 | (high_frequency << 3));
+            if (rRFM(0x01) == (0x85 | (high_frequency << 3))) {
+                 printf("LoRa radio mode set to rx cont!\n");
+            }
             break;
         case 3://rx single
             wRFM(0x01,0x86 | (high_frequency << 3));
+            if (rRFM(0x01) == (0x86 | (high_frequency << 3))) {
+                printf("LoRa radio mode set to rx single!\n");
+            }
             break;
         case 4://tx
             wRFM(0x01,0x83 | (high_frequency << 3));
+            if (rRFM(0x01) == (0x83 | (high_frequency << 3))) {
+                printf("LoRa radio mode set to tx!\n");
+            }
             break;
     }
 
