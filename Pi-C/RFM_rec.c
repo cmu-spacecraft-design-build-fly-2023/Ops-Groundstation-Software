@@ -1,6 +1,7 @@
 #include <bcm2835.h>
 #include <stdio.h>
 #include <signal.h>
+#include <unistd.h>
 #include "RFM98W_lib.h"
 
 /* Function Prototypes */
@@ -57,7 +58,7 @@ int main() {
 void GS_sigint_handler(int sig) {
     printf("Shutting down Groundstation!\n");
     radioMode(MODE_SLEEP);
-    bcm2835_spi_end();
+    // bcm2835_spi_end();
     bcm2835_close();
     exit(0);
 }

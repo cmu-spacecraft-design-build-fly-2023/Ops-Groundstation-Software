@@ -81,7 +81,7 @@ enum radio_configs {
 
     REG_09_PA_CONFIG = 0x09,
     FXOSC = 32000000,
-    FSTEP = (FXOSC / 524288),
+    FSTEP_DIV = 524288,
 
     HIGH_FREQUENCY = 0
 };
@@ -115,8 +115,8 @@ void beginTX(Packet tx, bool* rfm_done, uint8_t* rfm_status);
 void endTX(bool* rfm_done, uint8_t* rfm_status);
 // Begin receive
 void set_mode_RX();
-// End receive
-void endRX(Packet* received, bool* rfm_done, uint8_t* rfm_status);
+// Get Received message
+void RX_transmission(Packet* received);
 // Change radio
 void radioMode(uint8_t m);//set the mode of the radio
 

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <unistd.h>
 
 void configure() {
     bcm2835_gpio_fsel(nss, BCM2835_GPIO_FSEL_OUTP);
@@ -72,12 +73,14 @@ void configure() {
 }
 
 void setFrequency(uint32_t frequency) {
-    uint32_t freqVal = (frequency * 1000000) / FSTEP;
+    uint32_t freqVal = 14991360;
+    // (frequency * 1000000) / (FXOSC / 524288);
+    printf("%u\n",freqVal);
     wRFM(REG_06_FRF_MSB, (freqVal >> 16) & 0xFF); // MSB
     wRFM(REG_07_FRF_MID, (freqVal >> 8) & 0xFF); // MID
     wRFM(REG_08_FRF_LSB, (freqVal) & 0xFF); // LSB
     uint32_t getfreq = (((uint32_t)rRFM(REG_06_FRF_MSB)) << 16) + (((uint32_t)rRFM(REG_07_FRF_MID)) << 8) + ((uint32_t)rRFM(REG_08_FRF_LSB));
-    printf("Frequency set to: %u Mhz\n",(getfreq*FSTEP)/1000000);
+    printf("Frequency set to: %u Mhz\n",(getfreq*(FXOSC / 524288))/1000000);
 }
 
 uint8_t getVersion() {
@@ -157,44 +160,52 @@ void beginTX(Packet transmit_pkt, bool* rfm_done, uint8_t* rfm_status){
 void radioMode(uint8_t m){//set specified mode
     switch(m){
         case MODE_SLEEP: // Sleep Mode
-            wRFM(0x01,(uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3)));
-            if (rRFM(0x01) == (uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3))) {
+            wRFM(REG_01_OP_MODE, LONG_RANGE_MODE | MODE_SLEEP);
+            sleep(0.5);
+            if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_SLEEP)) {
                 printf("LoRa radio mode set to sleep!\n");
             }
             break;
         case MODE_STDBY: // Standby Mode
-            wRFM(0x01,(uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_STDBY));
-            if (rRFM(0x01) == (uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_STDBY)) {
+            wRFM(REG_01_OP_MODE, MODE_STDBY);
+            sleep(0.5);
+            printf("%u\n",rRFM(REG_01_OP_MODE));
+            if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_STDBY)) {
                  printf("LoRa radio mode set to standby!\n");
             }
             break;
         case MODE_FS_TX: // FS Mode TX
-            wRFM(0x01,(uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_FS_TX));
-            if (rRFM(0x01) == (uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_FS_TX)) {
+            wRFM(REG_01_OP_MODE, MODE_FS_TX);
+            sleep(0.1);
+            if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_FS_TX)) {
                  printf("LoRa radio mode set to FS TX mode!\n");
             }
             break;
         case MODE_TX: // TX Mode
-            wRFM(0x01,(uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_TX));
-            if (rRFM(0x01) == (uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_TX)) {
+            wRFM(REG_01_OP_MODE, MODE_TX);
+            sleep(0.1);
+            if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_TX)) {
                 printf("LoRa radio mode set to TX mode!\n");
             }
             break;
         case MODE_FS_RX: // FS Mode RX
-            wRFM(0x01,(uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_FS_RX));
-            if (rRFM(0x01) == (uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_FS_RX)) {
+            wRFM(REG_01_OP_MODE, MODE_FS_RX);
+            sleep(0.1);
+            if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_FS_RX)) {
                 printf("LoRa radio mode set to FS RX mode!\n");
             }
             break;
         case MODE_RXCONTINUOUS: // RX Continuous
-            wRFM(0x01,(uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_RXCONTINUOUS));
-            if (rRFM(0x01) == (uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3) | MODE_RXCONTINUOUS)) {
+            wRFM(REG_01_OP_MODE, MODE_RXCONTINUOUS);
+            sleep(0.1);
+            if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_RXCONTINUOUS)) {
                  printf("LoRa radio mode set to RX cont!\n");
             }
             break;
         default:
-            wRFM(0x01,(uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3)));
-            if (rRFM(0x01) == (uint8_t)(LONG_RANGE_MODE | ((uint8_t)(HIGH_FREQUENCY) << 3))) {
+            wRFM(REG_01_OP_MODE, MODE_SLEEP);
+            sleep(0.1);
+            if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_SLEEP)) {
                 printf("LoRa radio mode set to sleep!\n");
             }
     }
