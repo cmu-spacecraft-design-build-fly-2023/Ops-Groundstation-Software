@@ -6,6 +6,15 @@
 #include <unistd.h>
 
 void configure() {
+    // Init SPI
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
+    bcm2835_spi_set_speed_hz(5000000); // The default
+
+    // We control CS line manually don't assert CEx line!
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS_NONE);
+    
+    // Set CE0 line
     bcm2835_gpio_fsel(nss, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_write(nss, 1);
 
@@ -161,50 +170,49 @@ void radioMode(uint8_t m){//set specified mode
     switch(m){
         case MODE_SLEEP: // Sleep Mode
             wRFM(REG_01_OP_MODE, LONG_RANGE_MODE | MODE_SLEEP);
-            sleep(0.5);
+            sleep(1);
             if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_SLEEP)) {
                 printf("LoRa radio mode set to sleep!\n");
             }
             break;
         case MODE_STDBY: // Standby Mode
             wRFM(REG_01_OP_MODE, MODE_STDBY);
-            sleep(0.5);
-            printf("%u\n",rRFM(REG_01_OP_MODE));
+            sleep(1);
             if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_STDBY)) {
                  printf("LoRa radio mode set to standby!\n");
             }
             break;
         case MODE_FS_TX: // FS Mode TX
             wRFM(REG_01_OP_MODE, MODE_FS_TX);
-            sleep(0.1);
+            sleep(1);
             if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_FS_TX)) {
                  printf("LoRa radio mode set to FS TX mode!\n");
             }
             break;
         case MODE_TX: // TX Mode
             wRFM(REG_01_OP_MODE, MODE_TX);
-            sleep(0.1);
+            sleep(1);
             if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_TX)) {
                 printf("LoRa radio mode set to TX mode!\n");
             }
             break;
         case MODE_FS_RX: // FS Mode RX
             wRFM(REG_01_OP_MODE, MODE_FS_RX);
-            sleep(0.1);
+            sleep(1);
             if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_FS_RX)) {
                 printf("LoRa radio mode set to FS RX mode!\n");
             }
             break;
         case MODE_RXCONTINUOUS: // RX Continuous
             wRFM(REG_01_OP_MODE, MODE_RXCONTINUOUS);
-            sleep(0.1);
+            sleep(1);
             if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_RXCONTINUOUS)) {
                  printf("LoRa radio mode set to RX cont!\n");
             }
             break;
         default:
             wRFM(REG_01_OP_MODE, MODE_SLEEP);
-            sleep(0.1);
+            sleep(1);
             if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_SLEEP)) {
                 printf("LoRa radio mode set to sleep!\n");
             }

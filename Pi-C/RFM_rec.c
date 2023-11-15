@@ -18,14 +18,6 @@ int main() {
         printf("bcm2835_spi_begin failed\n");
     } 
     else {
-        // Init SPI
-        bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
-        bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-        bcm2835_spi_set_speed_hz(5000000); // The default
-
-        // We control CS line manually don't assert CEx line!
-        bcm2835_spi_chipSelect(BCM2835_SPI_CS_NONE);
-
         configure();
         set_mode_RX();
 
@@ -37,11 +29,19 @@ int main() {
                 bcm2835_gpio_set_eds(dio0);
                 printf("Rising event detect for pin GPIO%d\n", dio0);
                 Packet rx;
-                // endRX(&rx, &rfm_done, &rfm_status);
+                RX_transmission(&rx);
+                bool msg_unpack = false;
                 for(uint8_t i = 0;i<rx.len;i++){
-                   printf("%u ",rx.data[i]);
+                    if (i>0) {
+                        if (((rx.data[i-1] == 0) && (rx.data[i] != 0)) || msg_unpack == true) {
+                            printf("%c",(char)rx.data[i]);
+                            msg_unpack = true;
+                        }
+                    }
                 }
+                msg_unpack = false;
                 printf("\n");
+                printf("Communication complete!\n");
             }
         }
     }
