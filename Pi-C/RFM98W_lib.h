@@ -1,11 +1,17 @@
-/* (C) Team Impulse 2015
- * Made available under a modification of the MIT license - see repository root.
- * Comms library: RFM98W
+/**
+ * @name: RFM98W_lib Header File
  * 
- * Modified and converted to C by D.J. Morvay (dmorvay@andrew.cmu.edu)
- * Carnegie Mellon University - Fall/Spring 2023
- * 18-873 - Spacecraft Build & Fly Lab
- */
+ * @authors: David J. Morvay (dmorvay@andrew.cmu.edu)
+ * Carnegie Mellon University
+ * Fall 2023 - Spring 2024
+ * ECE 18-873 - Spacecraft Build, Design, & Fly Lab
+ * Satellite <> Groundstation Communications
+ * 
+ * With inspiration from: https://github.com/weustace/LoRaLib/tree/master
+ * As well as: https://gitlab.com/the-plant/raspi-lora
+ * 
+ * @brief: This file is the header file for RFM98W_lib.
+*/
 
 #ifndef RFMLib_h
 #define RFMLib_h
@@ -109,25 +115,24 @@ enum modem_config {
 void configure();
 // Set the radio frequency to a given value in Hz
 void setFrequency(uint32_t frequency);
-// Begin transmit
-void beginTX(Packet tx, bool* rfm_done, uint8_t* rfm_status);
-// End transmit
-void endTX(bool* rfm_done, uint8_t* rfm_status);
-// Begin receive
+// Transmit message
+void TX_transmission(Packet transmit_pkt);
+// Set RFM to transmit mode
+void set_mode_TX();
+// Set RFM to receive mode
 void set_mode_RX();
-// Get Received message
+// Get received message
 void RX_transmission(Packet* received);
 // Change radio
 void radioMode(uint8_t m);//set the mode of the radio
 
 // ----- Low-level I/O functions ----- // 
-void wRFM(uint8_t ad, uint8_t val);//IO functions
+void wRFM(uint8_t ad, uint8_t val);
 void bwRFM(uint8_t ad, uint8_t vals[], int n);
+uint8_t rRFM(uint8_t ad);
 void brRFM(uint8_t ad, uint8_t vals[], uint8_t len);
 //Return silicon version
 uint8_t getVersion();
-// Single byte read
-uint8_t rRFM(uint8_t ad);
 // Arduino Bit Read
 uint8_t bitRead(uint8_t x, uint8_t n);
 
