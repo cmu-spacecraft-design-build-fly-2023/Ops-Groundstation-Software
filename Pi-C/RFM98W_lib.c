@@ -103,7 +103,7 @@ void configure() {
     }
 
     // Set PA configuration
-    uint8_t PA_CONFIG = ((uint8_t)(PA_SELECT << 7)) + ((uint8_t)(MAX_PWR << 4)) + ((uint8_t)OUTPUT_PWR);
+    uint8_t PA_CONFIG = ((uint8_t)(PA_SELECT << 7)) + ((uint8_t)(MAX_PWR_BENCH << 4)) + ((uint8_t)OUTPUT_PWR_BENCH);
     wRFM(REG_09_PA_CONFIG, PA_CONFIG);
     if (rRFM(REG_09_PA_CONFIG) == PA_CONFIG) {
         printf("PA configuration set!\n");

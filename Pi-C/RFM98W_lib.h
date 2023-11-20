@@ -69,6 +69,8 @@ enum radio_configs {
     PA_SELECT = 0x00,
     OUTPUT_PWR = 0x0F,
     MAX_PWR = 0x7,
+    OUTPUT_PWR_BENCH = 0x00,
+    MAX_PWR_BENCH = 0x0,
 
     CAD_DETECTED_MASK = 0x01,
     RX_DONE = 0x40,
