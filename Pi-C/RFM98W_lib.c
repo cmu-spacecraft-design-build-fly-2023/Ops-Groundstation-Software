@@ -242,8 +242,8 @@ void RX_transmission(Packet* received) {//function to be called on, or soon afte
 */
 void set_mode_TX() {
     if ((rRFM(REG_01_OP_MODE) & MODE_TX) != MODE_TX) {
-        radioMode(MODE_TX);
         wRFM(REG_40_DIO_MAPPING1, 0x40);
+        radioMode(MODE_TX);
     }
 }
 
@@ -286,10 +286,8 @@ void TX_transmission(Packet transmit_pkt) {
     wRFM(REG_0D_FIFO_ADDR_PTR,base_addr);
     // Repeat; might not be needed?
     wRFM(REG_0D_FIFO_ADDR_PTR,base_addr);
-    // Rearm interrupt
-    wRFM(REG_40_DIO_MAPPING1,0x40);
-    // Reset mode
-    radioMode(MODE_TX);
+    // Set radio mode to tx
+    set_mode_TX();
 }
 
 /**
