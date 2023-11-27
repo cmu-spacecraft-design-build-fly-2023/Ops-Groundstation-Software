@@ -97,15 +97,20 @@ void configure() {
     setFrequency(915);
 
     // Set tx power
-    wRFM(REG_4D_PA_DAC, PA_DAC_DISABLE);
+    // wRFM(REG_4D_PA_DAC, PA_DAC_DISABLE);
+    // Hardcoded for now...
+    wRFM(REG_4D_PA_DAC, 7);
     if (rRFM(REG_4D_PA_DAC) == PA_DAC_DISABLE) {
         printf("PA DAC DISABLED!\n");
     }
 
     // Set PA configuration
-    uint8_t PA_CONFIG = ((uint8_t)(PA_SELECT << 7)) + ((uint8_t)(MAX_PWR_BENCH << 4)) + ((uint8_t)OUTPUT_PWR_BENCH);
+    // uint8_t PA_CONFIG = ((uint8_t)(PA_SELECT << 7)) + ((uint8_t)(MAX_PWR_BENCH << 4)) + ((uint8_t)OUTPUT_PWR_BENCH);
+    // Hardcoded for now...
+    uint8_t PA_CONFIG = 253;
     wRFM(REG_09_PA_CONFIG, PA_CONFIG);
     if (rRFM(REG_09_PA_CONFIG) == PA_CONFIG) {
+        printf("%u\n",rRFM(REG_09_PA_CONFIG));
         printf("PA configuration set!\n");
     }
 }
@@ -242,6 +247,7 @@ void RX_transmission(Packet* received) {//function to be called on, or soon afte
 */
 void set_mode_TX() {
     if ((rRFM(REG_01_OP_MODE) & MODE_TX) != MODE_TX) {
+        wRFM(REG_0C_LNA, LNA_OFF_GAIN);
         wRFM(REG_40_DIO_MAPPING1, 0x40);
         radioMode(MODE_TX);
     }
@@ -264,29 +270,19 @@ void set_mode_TX() {
  * @return: NONE
 */
 void TX_transmission(Packet transmit_pkt) {
-    // Set radio to standby and clear IRQ flags
+    // Set radio to standby
     radioMode(MODE_STDBY);
-    wRFM(REG_12_IRQ_FLAGS,0xFF);
-
-    // Set payload length
-    wRFM(REG_22_PAYLOAD_LENGTH,transmit_pkt.len);
-    // Get base address
-    uint8_t base_addr = rRFM(REG_0E_FIFO_TX_BASE_ADDR);
-    //Put transmit base FIFO addr in FIFO pointer
-    wRFM(REG_0D_FIFO_ADDR_PTR,base_addr);
 
     uint8_t new_data[transmit_pkt.len];
     for(int i = 0;i<transmit_pkt.len;i++){
         new_data[i] = transmit_pkt.data[i];
     }
-
+    // Reset FIFO pointer
+    uint8_t base_ptr = rRFM(REG_0E_FIFO_TX_BASE_ADDR);
+    wRFM(REG_0D_FIFO_ADDR_PTR,base_ptr);
     // Send message to RFM to be transmitted!
     bwRFM(REG_00_FIFO,new_data,transmit_pkt.len);
-    // Reset FIFO pointer
-    wRFM(REG_0D_FIFO_ADDR_PTR,base_addr);
-    // Repeat; might not be needed?
-    wRFM(REG_0D_FIFO_ADDR_PTR,base_addr);
-    // Set radio mode to tx
+    wRFM(REG_22_PAYLOAD_LENGTH,transmit_pkt.len);
     set_mode_TX();
 }
 
@@ -348,6 +344,13 @@ void radioMode(uint8_t m){
                  printf("LoRa radio mode set to RX cont!\n");
             }
             break;
+       case MODE_CAD: // RX Continuous
+            wRFM(REG_01_OP_MODE, MODE_CAD);
+            sleep(1);
+            if (rRFM(REG_01_OP_MODE) == (LONG_RANGE_MODE | MODE_CAD)) {
+                 printf("LoRa radio mode set to CAD!\n");
+            }
+            break;
         default:
             wRFM(REG_01_OP_MODE, MODE_SLEEP);
             sleep(1);
@@ -404,12 +407,12 @@ void wRFM(uint8_t ad, uint8_t val){
 void bwRFM(uint8_t ad, uint8_t vals[], int n) { 
     // Preparation
     uint8_t ad_buf_tx[1] = {ad | 128}, ad_buf_rx[1] = {0}; 
-    uint8_t val_buf_rx[n];
+    uint8_t val_buf_rx[256];
 
     // Pull CE0 and transfer data
     bcm2835_gpio_write(nss, 0);
     bcm2835_spi_transfernb(ad_buf_tx, ad_buf_rx, sizeof(ad_buf_tx));
-    bcm2835_spi_transfernb(vals, val_buf_rx, sizeof(val_buf_rx));
+    bcm2835_spi_transfernb(vals, val_buf_rx, n);
     bcm2835_gpio_write(nss, 1);
 }
 

@@ -46,6 +46,8 @@ enum radio_configs {
     REG_06_FRF_MSB = 0x06,
     REG_07_FRF_MID = 0x07,
     REG_08_FRF_LSB = 0x08,
+    REG_09_PA_CONFIG = 0x09,
+    REG_0C_LNA = 0x0C,
     REG_0E_FIFO_TX_BASE_ADDR = 0x0E,
     REG_0F_FIFO_RX_BASE_ADDR = 0x0F,
     REG_10_FIFO_RX_CURRENT_ADDR = 0x10,
@@ -69,14 +71,14 @@ enum radio_configs {
     PA_SELECT = 0x00,
     OUTPUT_PWR = 0x0F,
     MAX_PWR = 0x7,
-    OUTPUT_PWR_BENCH = 0x00,
+    OUTPUT_PWR_BENCH = 0x06,
     MAX_PWR_BENCH = 0x0,
 
     CAD_DETECTED_MASK = 0x01,
     RX_DONE = 0x40,
     TX_DONE = 0x08,
     CAD_DONE = 0x04,
-    CAD_DETECTED = 0x01,
+    CAD_DETECTED = 0x02,
 
     LONG_RANGE_MODE = 0x80,
     MODE_SLEEP = 0x00,
@@ -87,11 +89,11 @@ enum radio_configs {
     MODE_RXCONTINUOUS = 0x05,
     MODE_CAD = 0x07,
 
-    REG_09_PA_CONFIG = 0x09,
     FXOSC = 32000000,
     FSTEP_DIV = 524288,
 
-    HIGH_FREQUENCY = 0
+    HIGH_FREQUENCY = 0,
+    LNA_OFF_GAIN = 0
 };
 
 enum modem_config {

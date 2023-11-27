@@ -49,11 +49,16 @@ int main() {
 
         // Create packet we want to send
         Packet TX_packet;
-        const char my_msg[] = "D.J. writes c code.";
-        TX_packet.len = strlen(my_msg);
+        const char my_msg[] = "D.J.";
+        TX_packet.len = strlen(my_msg)+4;
+
+        TX_packet.data[0] = 10;
+        TX_packet.data[1] = 2;
+        TX_packet.data[2] = 0;
+        TX_packet.data[3] = 0;
 
         for (size_t i = 0; i < TX_packet.len; i++) {
-            TX_packet.data[i] = (uint8_t)my_msg[i];
+            TX_packet.data[i+4] = (uint8_t)my_msg[i];
         }
 
         TX_transmission(TX_packet);
@@ -67,7 +72,7 @@ int main() {
 
                 // Message sent, reset mode to standby
                 radioMode(MODE_STDBY);
-            
+                wRFM(REG_12_IRQ_FLAGS,0xFF);
                 printf("Message successfully sent!\n");
                 break;
             }
