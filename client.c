@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <signal.h>
 #include "helpers/header.h"
+#include "helpers/payload.h"
 #define PORT 8080
 
 /* Function Prototypes */
@@ -45,16 +46,27 @@ int main(int argc, char const* argv[])
     int status, client_fd;
     ssize_t bytes_received_client;
     struct sockaddr_in serv_addr;
+    ssize_t payload_received_client = -1;
+    uint8_t message_buf[256] = {0};
 
     /* Sent or received values */
-    header send_head;
-    send_head.version_number = 0b0;
-    send_head.packet_type = 0b0;
-    send_head.sec_header_flag = 0b0;
-    send_head.APID = 100;
-    send_head.sequence_flag = 0b11;
-    send_head.sequence_count = 0;
-    send_head.data_length = 100;
+    space_payload my_payload;
+    my_payload.header_payload.version_number = 0b0;
+    my_payload.header_payload.packet_type = 0b0;
+    my_payload.header_payload.sec_header_flag = 0b0;
+    my_payload.header_payload.APID = 100;
+    my_payload.header_payload.sequence_flag = 0b11;
+    my_payload.header_payload.sequence_count = 0;
+    my_payload.header_payload.data_length = 1;
+    my_payload.message_payload.message_ptr = (uint8_t*)calloc(my_payload.header_payload.data_length, sizeof(uint8_t));
+
+    // Test Signals //
+    msg_signal test_sig1;
+    test_sig1.start_bit = 0;
+    test_sig1.end_bit = 7;
+    uint8_t dummy1 = 0b00000000;
+
+    pack_payload(my_payload.message_payload.message_ptr,dummy1,test_sig1);
 
     /* SIGINT Handler*/
     signal(SIGINT, client_sigint_handler);
@@ -85,32 +97,48 @@ int main(int argc, char const* argv[])
         printf("Enter command: ");
         fgets(cmd, 50, stdin);
 
-        if (send(client_fd, &send_head, sizeof(send_head), 0) == -1) {
+        memcpy(message_buf, &my_payload.header_payload, sizeof(my_payload.header_payload));
+        memcpy(message_buf+sizeof(my_payload.header_payload),my_payload.message_payload.message_ptr,my_payload.header_payload.data_length);
+
+        // Send header
+        if (send(client_fd, message_buf, sizeof(my_payload.header_payload)+my_payload.header_payload.data_length, 0) == -1) {
             perror("Send failed");
             break;
         } 
         else {
-            printf("Packet sent from cubesat!\n\n");
+            printf("Message sent from cubesat!\n\n");
         }
 
-        int bytes_received = recv(client_fd, &send_head, sizeof(send_head), 0);
-        if (bytes_received == -1) {
-            perror("Receive failed");
+        // Get response from groundstation
+        payload_received_client = recv(client_fd, message_buf, sizeof(message_buf), 0);
+
+        // Display Header Information
+        if (payload_received_client == -1) {
+            perror("Receive header failed");
             break;
-        } else if (bytes_received == 0) {
+        } else if (payload_received_client == 0) {
             printf("Server closed the connection.\n");
             break;
         } else {
-            printf("Version number: %u\n",send_head.version_number);
-            printf("Packet type: %u\n",send_head.packet_type);
-            printf("Secondary header flag: %u\n",send_head.sec_header_flag);
-            printf("APID: %u\n",send_head.APID);
+            memcpy(&my_payload.header_payload, message_buf, sizeof(my_payload.header_payload));
+            memcpy(my_payload.message_payload.message_ptr, message_buf+sizeof(my_payload.header_payload), my_payload.header_payload.data_length);
 
-            printf("Sequence flag: %u\n",send_head.sequence_flag);
-            printf("Sequence count: %u\n",send_head.sequence_count);
-            printf("Data length: %u\n\n",send_head.data_length);
+            printf("Version number: %u\n",my_payload.header_payload.version_number);
+            printf("Packet type: %u\n",my_payload.header_payload.packet_type);
+            printf("Secondary header flag: %u\n",my_payload.header_payload.sec_header_flag);
+            printf("APID: %u\n",my_payload.header_payload.APID);
+
+            printf("Sequence flag: %u\n",my_payload.header_payload.sequence_flag);
+            printf("Sequence count: %u\n",my_payload.header_payload.sequence_count);
+            printf("Data length: %u\n",my_payload.header_payload.data_length);
+
+            dummy1 = (uint8_t)unpack_payload(my_payload.message_payload.message_ptr, test_sig1);
+            printf("Message: %u\n\n",dummy1);
         }
     }
+
+    /* Free memory */
+    free(my_payload.message_payload.message_ptr);
   
     /* closing the connected socket */
     close(client_fd);

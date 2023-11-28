@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <signal.h>
 #include "helpers/header.h"
+#include "helpers/payload.h"
 #define PORT 8080
 
 /**
@@ -39,13 +40,18 @@
 int main(int argc, char const* argv[]) {
     /* Server configuration variables */
     int server_fd, new_socket;
-    ssize_t bytes_received_server;
+    ssize_t payload_received_server;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
+    uint8_t message_buf[256];
 
     /* Sent or received values */
-    header rec_head;
+    space_payload rec_payload;
+    msg_signal rec_sig1;
+    rec_sig1.start_bit = 0;
+    rec_sig1.end_bit = 7;
+    uint8_t rec_dummy;
   
     /* Creating socket file descriptor */
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -81,33 +87,45 @@ int main(int argc, char const* argv[]) {
     /* Loop and wait for message from client (Cubesat) */
     while(1) {
 
-        /* Get message */
-        bytes_received_server = recv(new_socket, &rec_head, sizeof(rec_head),0);
-
+        // Get complete payload from Cubesat //
+        payload_received_server = recv(new_socket, message_buf, sizeof(message_buf),0);
+    
         /**
          *  If message is received, unpack and report data. 
          *  If client closed session, break.
          *  Else, reloop and check again.
         */
-        if (bytes_received_server > 0) {
-            printf("Packet received at ground station!\n\n");
+        if (payload_received_server > 0) {
+            printf("Packet received at ground station!\n");
 
-            printf("Version number: %u\n",rec_head.version_number);
-            printf("Packet type: %u\n",rec_head.packet_type);
-            printf("Secondary header flag: %u\n",rec_head.sec_header_flag);
-            printf("APID: %u\n",rec_head.APID);
+            rec_payload.message_payload.message_ptr = (uint8_t*)malloc(rec_payload.header_payload.data_length);
 
-            printf("Sequence flag: %u\n",rec_head.sequence_flag);
-            printf("Sequence count: %u\n",rec_head.sequence_count);
-            printf("Data length: %u\n\n",rec_head.data_length);
+            memcpy(&rec_payload.header_payload, message_buf, sizeof(rec_payload.header_payload));
+            memcpy(rec_payload.message_payload.message_ptr, message_buf+sizeof(rec_payload.header_payload), rec_payload.header_payload.data_length);
 
-            rec_head.APID += 10;
-            rec_head.data_length += 100;
+            printf("Version number: %u\n",rec_payload.header_payload.version_number);
+            printf("Packet type: %u\n",rec_payload.header_payload.packet_type);
+            printf("Secondary header flag: %u\n",rec_payload.header_payload.sec_header_flag);
+            printf("APID: %u\n",rec_payload.header_payload.APID);
+
+            printf("Sequence flag: %u\n",rec_payload.header_payload.sequence_flag);
+            printf("Sequence count: %u\n",rec_payload.header_payload.sequence_count);
+            printf("Data length: %u\n",rec_payload.header_payload.data_length);
+
+            rec_dummy = unpack_payload(rec_payload.message_payload.message_ptr,rec_sig1);
+            printf("Message Contents: %u\n\n",rec_dummy);
+            pack_payload(rec_payload.message_payload.message_ptr,rec_dummy+1,rec_sig1);
+
+            memcpy(message_buf, &rec_payload.header_payload, sizeof(rec_payload.header_payload));
+            memcpy(message_buf+sizeof(rec_payload.header_payload), rec_payload.message_payload.message_ptr, rec_payload.header_payload.data_length);
             
-            send(new_socket, &rec_head, sizeof(rec_head), 0);
-            printf("Packet sent pack to cubesat!\n\n");
+            send(new_socket, message_buf, sizeof(rec_payload.header_payload)+rec_payload.header_payload.data_length, 0);
+            printf("Message sent back to cubesat!\n\n");
+
+            /* Free memory */
+            free(rec_payload.message_payload.message_ptr);
         } 
-        else if (bytes_received_server == 0) {
+        else if (payload_received_server == 0) {
             break;
         }
     }
