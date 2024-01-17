@@ -1,5 +1,5 @@
 /**
- * @name: RFM_TX
+ * @name: RFM_TX_FILE
  * 
  * @authors: David J. Morvay (dmorvay@andrew.cmu.edu)
  * Carnegie Mellon University
@@ -7,7 +7,7 @@
  * ECE 18-873 - Spacecraft Build, Design, & Fly Lab
  * Satellite <> Groundstation Communications
  * 
- * @brief: This file transmits one packet of data from the RFM98 module.
+ * @brief: This file transmits contents of a file from the RFM98 module.
 */
 #include <bcm2835.h>
 #include <stdio.h>
@@ -22,16 +22,23 @@ void GS_sigint_handler(int sig);
 /**
  * @name: main()
  * 
- * @brief: The following function attempts to transmit one packet
- *          of data and then waits for the TX DONE interrupt before exiting. 
+ * @brief: The following function attempts to transmit the contents of a file
+ *          and then waits for the TX DONE interrupt before exiting. 
  * 
  * Inputs: NONE
+ *
  * Outputs: NONE
  * 
  * Saved Values: NONE
+ *
  * @return: ints
 */
 int main() {
+    FILE* file;
+    char* my_msg = NULL;
+    size_t len = 0;
+    size_t read;
+
     // SIGINT Handler
     signal(SIGINT, GS_sigint_handler);
 
@@ -47,10 +54,32 @@ int main() {
         // Configure the RFM module to receive packets
         configure();
 
+         // Open the file in read mode
+        file = fopen("msg.txt", "r");
+        if (file == NULL) {
+            perror("Error opening file");
+            return 1;
+        }
+
+        // Read a line from the file
+        read = getline(&my_msg, &len, file);
+        if (read == -1) {
+            perror("Error reading line");
+            fclose(file);
+            free(my_msg);
+            return 1;
+        }
+
+        // Print the line and its size
+        printf("Line: %s\n", my_msg);
+        printf("Size of the line: %zu\n", len);
+
+        // Close the file and free allocated memory
+        fclose(file);
+
         // Create packet we want to send
         Packet TX_packet;
-        const char my_msg[] = "D.J. was here!";
-        TX_packet.len = strlen(my_msg)+4;
+        TX_packet.len = len+4;
 
         TX_packet.data[0] = 10;
         TX_packet.data[1] = 2;
@@ -60,6 +89,8 @@ int main() {
         for (size_t i = 0; i < TX_packet.len; i++) {
             TX_packet.data[i+4] = (uint8_t)my_msg[i];
         }
+
+        free(my_msg);
 
         TX_transmission(TX_packet);
 
