@@ -1,5 +1,5 @@
 /**
- * @name: RFM_TX
+ * @name: RFM_rec
  * 
  * @authors: David J. Morvay (dmorvay@andrew.cmu.edu)
  * Carnegie Mellon University
@@ -7,14 +7,15 @@
  * ECE 18-873 - Spacecraft Build, Design, & Fly Lab
  * Satellite <> Groundstation Communications
  * 
- * @brief: This file transmits one packet of data from the RFM98 module.
+ * @brief: This file receives a packets of data RFM98 module.
 */
 #include <bcm2835.h>
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
-#include <string.h>
 #include "RFM98W_lib.h"
+
+FILE *file;
 
 /* Function Prototypes */
 void GS_sigint_handler(int sig);
@@ -22,8 +23,8 @@ void GS_sigint_handler(int sig);
 /**
  * @name: main()
  * 
- * @brief: The following function attempts to transmit one packet
- *          of data and then waits for the TX DONE interrupt before exiting. 
+ * @brief: The following function waits for an interrupt on dio0 and
+ *          unpacks the message received by the RFM module. 
  * 
  * Inputs: NONE
  * Outputs: NONE
@@ -32,8 +33,15 @@ void GS_sigint_handler(int sig);
  * @return: ints
 */
 int main() {
-    // SIGINT Handler
+    /* SIGINT Handler s*/
     signal(SIGINT, GS_sigint_handler);
+
+    // Open the file in write mode
+    file = fopen("rec.txt", "w");
+    if (file == NULL) {
+        perror("Error opening file");
+        return 1;
+    }
 
     // Initialize I/O
     if (!bcm2835_init()) {
@@ -46,22 +54,7 @@ int main() {
     else {
         // Configure the RFM module to receive packets
         configure();
-
-        // Create packet we want to send
-        Packet TX_packet;
-        const char my_msg[] = "D.J. was here!";
-        TX_packet.len = strlen(my_msg)+4;
-
-        TX_packet.data[0] = 10;
-        TX_packet.data[1] = 2;
-        TX_packet.data[2] = 0;
-        TX_packet.data[3] = 0;
-
-        for (size_t i = 0; i < TX_packet.len; i++) {
-            TX_packet.data[i+4] = (uint8_t)my_msg[i];
-        }
-
-        TX_transmission(TX_packet);
+        set_mode_RX();
 
         while(1) {
             // Wait for rising edge on dio0
@@ -70,17 +63,37 @@ int main() {
                 bcm2835_gpio_set_eds(dio0);
                 printf("Rising event detect for pin GPIO%d\n", dio0);
 
-                // Message sent, reset mode to standby
-                radioMode(MODE_STDBY);
-                wRFM(REG_12_IRQ_FLAGS,0xFF);
-                printf("Message successfully sent!\n");
-                break;
+                // Get received packet from RFM buffer
+                Packet rx;
+                RX_transmission(&rx);
+                bool msg_unpack = false;
+
+                // Print received message
+                for(uint8_t i = 0;i<rx.len;i++){
+                    if (i>0) {
+                        if (((rx.data[i-1] == 0) && (rx.data[i] != 0)) || msg_unpack == true) {
+                            printf("%c",(char)rx.data[i]);
+                            msg_unpack = true;
+
+                            if ((char)rx.data[i] != '\0') {
+                                if (fputc((char)rx.data[i], file) == EOF) {
+                                    perror("Error writing to file");
+                                    fclose(file);
+                                    return 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                printf("\n");
+                printf("Communication complete!\n");
             }
         }
     }
     // Close I/O and SPI connection
-    // bcm2835_spi_end();
+    bcm2835_spi_end();
     bcm2835_close();
+    fclose(file);
     return 0;
 }
 
@@ -102,5 +115,6 @@ void GS_sigint_handler(int sig) {
     radioMode(MODE_SLEEP);
     // bcm2835_spi_end();
     bcm2835_close();
+    fclose(file);
     exit(0);
 }
