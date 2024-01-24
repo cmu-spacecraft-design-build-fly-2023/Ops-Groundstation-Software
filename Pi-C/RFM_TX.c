@@ -47,6 +47,8 @@ int main() {
         // Configure the RFM module to receive packets
         configure();
 
+        printf("%u\n",getVersion());
+
         // Create packet we want to send
         Packet TX_packet;
         const char my_msg[] = "D.J. was here!";
