@@ -14,14 +14,13 @@ lora = LoRa(0, 19, 2, modem_config=ModemConfig.Bw125Cr45Sf128, tx_power=3, acks=
 lora.on_recv = on_recv
 
 lora.set_mode_tx()
-i = 0
 
 # Send a message to a recipient device with address 10
 # Retry sending the message twice if we don't get an  acknowledgment from the recipient
-message = "D.J. sent message #" + str(i)
+message = "D.J. sent message #"
 status = lora.send(message, 10)
 if status is True:
-    print("Message #" + str(i) + " sent!")
+    print(message)
 else:
     print("No acknowledgment from recipient")
 
