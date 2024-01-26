@@ -30,4 +30,3 @@ SAT_DEL_IMG3 = const(0x24)
 
 # TX message packet (empty header) 
 # to add payload, generate payload list and add
-lora_tx_message = [0x00, 0x00, 0x00, 0x00]
