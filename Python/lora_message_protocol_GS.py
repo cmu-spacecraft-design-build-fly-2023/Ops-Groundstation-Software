@@ -1,5 +1,5 @@
 from raspi_lora import LoRa, ModemConfig
-import message_database
+from protocol_database import *
 import time
 import signal
 

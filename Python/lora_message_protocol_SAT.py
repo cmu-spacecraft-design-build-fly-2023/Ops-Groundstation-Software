@@ -1,5 +1,5 @@
 from raspi_lora import LoRa, ModemConfig
-import message_database
+from protocol_database import *
 import time
 import signal
 
@@ -8,6 +8,11 @@ def on_recv(payload):
     print("From:", payload.header_from)
     print("Received:", payload.message)
     print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
+
+    # convert message bytes back to list
+    # lora_rx_message = (lora_rx_message_bits.decode('utf-8')).strip('][').split(', ')
+    # lora_rx_message = [int(i) for i in lora_rx_message]
+
     global received_success 
     received_success = True
 
@@ -17,20 +22,10 @@ lora = LoRa(0, 19, 2, modem_config=ModemConfig.Bw125Cr45Sf128, tx_power=3, acks=
 lora.on_recv = on_recv
 
 # LoRa header
-lora_tx_message = [SAT_HEARTBEAT, 0x00, 0x01, 0x04]
+lora_tx_message = construct_message(SAT_HEARTBEAT)
 
-# Generate LoRa payload for dummy heartbeat 
-# All systems ok, bits 0-12 are 1
-sat_system_status = [0x1F, 0xFF]
-lora_tx_message += sat_system_status
-
-# Battery at 80% charge 
-batt_soc = 80
-lora_tx_message.append(batt_soc)
-
-# Satellite temperature is 32 degrees C
-sat_temperature = 32
-lora_tx_message.append(sat_temperature)
+# convert message to bytes for transmission 
+# lora_tx_message_bits = str(lora_tx_message).encode('utf-8')
 
 signal.signal(signal.SIGINT, lora.close)
 
