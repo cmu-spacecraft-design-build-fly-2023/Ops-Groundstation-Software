@@ -1,14 +1,15 @@
 from raspi_lora import LoRa, ModemConfig
-import message_database
+from message_database import *
 import time
 import signal
 
 # This is our callback function that runs when a message is received
 def on_recv(payload):
-    print(payload.message.decode("utf-8")) 
-    print("From:", payload.header_from)
-    print("Received image")
-    print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
+    print(payload.message) 
+    # print("From:", payload.header_from)
+    # print("Received image")
+    # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
+    print('')
     global received_success 
     received_success = True
 
@@ -38,6 +39,14 @@ while True:
     lora.set_mode_tx()
     time.sleep(1)
 
-    lora.send(lora_tx_message, 2)
+    status = lora.send(lora_tx_message, 2)
+
+    # Check for groundstation acknowledgement 
+    if status is True:
+        print(lora_tx_message)
+        print('')
+    else:
+        print("No acknowledgment from recipient")
+        print('')
 
 lora.close()
