@@ -31,7 +31,7 @@ sat_temperature = 32
 lora_tx_message.append(sat_temperature)
 
 while True:
-    transmit_message(lora, lora_tx_message)
+    sat_transmit_message(lora, lora_tx_message)
     receive_message(lora)
 
 # And remember to call this as your program exits...
