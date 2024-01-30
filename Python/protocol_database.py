@@ -49,6 +49,18 @@ def deconstruct_message(lora_rx_message):
         print("GS: Satellite system status:", lora_rx_message[4], lora_rx_message[5])
         print("GS: Satellite battery SOC: " + str(lora_rx_message[6]) + "%")
         print("GS: Satellite temperature: " + str(lora_rx_message[7]) + "*C")
+    
+    elif(lora_rx_message[0] == GS_ACK):
+        print("SAT: Received GS ack!")
+        seq_count = (lora_rx_message[1] << 8) + lora_rx_message[2]
+        print("SAT: Sequence Count:", seq_count)
+        print("SAT: Message Length:", lora_rx_message[3])
+
+        # deconstruct message contents
+        print("SAT: GS received message:", hex(lora_rx_message[4]))
+        print("SAT: GS requested message:", hex(lora_rx_message[5]))
+        seq_count = (lora_rx_message[6] << 8) + lora_rx_message[7]
+        print("SAT: GS requested sequence count:", seq_count)
 
 
 def construct_message(lora_tx_message_ID):
