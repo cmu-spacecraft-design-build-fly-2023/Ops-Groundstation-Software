@@ -16,11 +16,11 @@ class SAT_STATES(Enum):
         payload - message that was received
 '''
 def on_recv(payload):
-    print(payload.message) 
+    # print(payload.message) 
     # print("From:", payload.header_from)
     # print("Received:", payload.message)
     # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
-    print('')
+    # print('')
     global received_success 
     received_success = True
 
@@ -33,6 +33,7 @@ def on_recv(payload):
 '''
 def sat_transmit_message(lora, lora_tx_message):
     # Set radio to TX mode
+    time.sleep(0.1)
     lora.set_mode_tx()
     time.sleep(0.1)
 
@@ -41,12 +42,12 @@ def sat_transmit_message(lora, lora_tx_message):
     status = lora.send(lora_tx_message, 10)
 
     # Check for groundstation acknowledgement 
-    if status is True:
-        print("Satellite sent message: [", *[hex(num) for num in lora_tx_message], "]")
-        print("\n")
-    else:
-        print("No acknowledgment from recipient")
-        print("\n")
+    # if status is True:
+    #     print("Satellite sent message: [", *[hex(num) for num in lora_tx_message], "]")
+    #     print("\n")
+    # else:
+    #     print("No acknowledgment from recipient")
+    #     print("\n")
 
 '''
     Name: gs_transmit_message
@@ -57,6 +58,7 @@ def sat_transmit_message(lora, lora_tx_message):
 '''
 def gs_transmit_message(lora, lora_tx_message):
     # Set radio to TX mode
+    time.sleep(0.1)
     lora.set_mode_tx()
     time.sleep(0.1)
 
@@ -65,24 +67,30 @@ def gs_transmit_message(lora, lora_tx_message):
     status = lora.send(lora_tx_message, 2)
 
     # Check for groundstation acknowledgement 
-    if status is True:
-        print("Ground station sent message: [", *[hex(num) for num in lora_tx_message], "]")
-        print("\n")
-    else:
-        print("No acknowledgment from recipient")
-        print("\n")
+    # if status is True:
+    #     print("Ground station sent message: [", *[hex(num) for num in lora_tx_message], "]")
+    #     print("\n")
+    # else:
+    #     print("No acknowledgment from recipient")
+    #     print("\n")
 
 '''
     Name: received_message
     Description: This function waits for a message to be received from the LoRa module
     Inputs:
         lora - Declaration of lora class
+    Outputs:
+        received_success - Flag set by on_recv IRQ
 '''
 def receive_message(lora):
     global received_success 
     received_success = False
+    time.sleep(0.1)
     lora.set_mode_rx()
     time.sleep(0.1)
 
     while received_success == False:
         time.sleep(0.1)
+
+        if received_success == True:
+            return received_success
