@@ -46,6 +46,7 @@ class GROUNDSTATION:
     def receive_message(self,lora):
         global received_success 
         received_success = False
+        time.sleep(0.1)
         lora.set_mode_rx()
         time.sleep(0.1)
 
@@ -67,13 +68,18 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def unpack_message(self,lora):
-        self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='little')
+        self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='big')
+        self.message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='little')
+        self.message_size = int.from_bytes(lora._last_payload.message[3:4])
         if self.message_ID == SAT_HEARTBEAT:
             print("Heartbeat received!")
             self.num_commands_sent = 0
             self.new_session = True
         else:
             print("Telemetry or image received!")
+            print(self.message_ID)
+            print(self.message_sequence_count)
+            print(self.message_size)
 
     '''
         Name: transmit_message
@@ -83,6 +89,7 @@ class GROUNDSTATION:
     '''
     def transmit_message(self,lora):
         # Set radio to TX mode
+        time.sleep(0.1)
         lora.set_mode_tx()
         time.sleep(0.1)
 
@@ -170,27 +177,3 @@ class GROUNDSTATION:
 def on_recv(payload):
     global received_success 
     received_success = True
-
-'''
-    Name: sat_transmit_message
-    Description: Satellite transmits a message via the LoRa module when the function is called.
-    Inputs:
-        lora - Declaration of lora class
-        lora_tx_message - message to be transmitted
-'''
-def sat_transmit_message(lora, lora_tx_message):
-    # Set radio to TX mode
-    lora.set_mode_tx()
-    time.sleep(0.1)
-
-    # Send a message to ground station device with address 10
-    # Retry sending the message twice if we don't get an acknowledgment from the recipient
-    status = lora.send(lora_tx_message, 10)
-
-    # Check for groundstation acknowledgement 
-    if status is True:
-        print("Satellite sent message: [", *[hex(num) for num in lora_tx_message], "]")
-        print("\n")
-    else:
-        print("No acknowledgment from recipient")
-        print("\n")

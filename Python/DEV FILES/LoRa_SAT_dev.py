@@ -1,8 +1,10 @@
 from raspi_lora import LoRa, ModemConfig
-from message_database import *
-from declarations import *
+from message_database_dev import *
+from SAT_helpers import *
 import time
 import signal
+
+SAT = SATELLITE()
 
 ## ---------- MAIN CODE STARTS HERE! ---------- ##
 # LoRa module setup
@@ -14,25 +16,9 @@ lora.on_recv = on_recv
 # Setup interrupt
 signal.signal(signal.SIGINT, lora.close)
 
-# LoRa header
-lora_tx_message = [SAT_HEARTBEAT, 0x00, 0x01, 0x04]
-
-# Generate LoRa payload for dummy heartbeat 
-# All systems ok, bits 0-12 are 1
-sat_system_status = [0x1F, 0xFF]
-lora_tx_message += sat_system_status
-
-# Battery at 80% charge 
-batt_soc = 80
-lora_tx_message.append(batt_soc)
-
-# Satellite temperature is 32 degrees C
-sat_temperature = 32
-lora_tx_message.append(sat_temperature)
-
 while True:
-    transmit_message(lora, lora_tx_message)
-    receive_message(lora)
+    SAT.transmit_message(lora)
+    SAT.receive_message(lora)
 
 # And remember to call this as your program exits...
 lora.close()
