@@ -46,7 +46,6 @@ class GROUNDSTATION:
     def receive_message(self,lora):
         global received_success 
         received_success = False
-        time.sleep(0.1)
         lora.set_mode_rx()
         time.sleep(0.1)
 
@@ -69,17 +68,19 @@ class GROUNDSTATION:
     '''
     def unpack_message(self,lora):
         self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='big')
-        self.message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='little')
-        self.message_size = int.from_bytes(lora._last_payload.message[3:4])
+        self.message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='big')
+        self.message_size = int.from_bytes(lora._last_payload.message[3:4],byteorder='big')
         if self.message_ID == SAT_HEARTBEAT:
             print("Heartbeat received!")
             self.num_commands_sent = 0
             self.new_session = True
         else:
             print("Telemetry or image received!")
-            print(self.message_ID)
-            print(self.message_sequence_count)
-            print(self.message_size)
+            print("Message ID:",self.message_ID)
+            print("Sequence Count:",self.message_sequence_count)
+            print("Message Size:",self.message_size)
+            print(len(lora._last_payload.message))
+            # print(lora._last_payload.message)
 
     '''
         Name: transmit_message
@@ -89,9 +90,8 @@ class GROUNDSTATION:
     '''
     def transmit_message(self,lora):
         # Set radio to TX mode
-        time.sleep(0.1)
         lora.set_mode_tx()
-        time.sleep(0.1)
+        time.sleep(0.5)
 
         if self.num_commands_sent < self.cmd_queue_size:
             lora_tx_message = self.pack_telemetry_command()
