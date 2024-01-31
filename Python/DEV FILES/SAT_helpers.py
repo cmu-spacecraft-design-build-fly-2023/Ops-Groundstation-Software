@@ -54,7 +54,6 @@ class SATELLITE:
     def receive_message(self,lora):
         global received_success 
         received_success = False
-        time.sleep(0.1)
         lora.set_mode_rx()
         time.sleep(0.1)
 
@@ -77,6 +76,7 @@ class SATELLITE:
     '''
     def unpack_message(self,lora):
         self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='little')
+        print("Message ID:",self.message_ID)
 
     '''
         Name: transmit_message
@@ -86,28 +86,29 @@ class SATELLITE:
     '''
     def transmit_message(self,lora):
         # Set radio to TX mode
-        time.sleep(0.1)
         lora.set_mode_tx()
-        time.sleep(0.1)
+        time.sleep(0.25)
 
         if (self.sequence_counter < self.image_message_count):
             seq_counter_bytes = self.sequence_counter.to_bytes(2,'big')
         
             if (self.byte_counter > 128):
-                payload_size = bytes(128)
+                payload_size = bytes([128])
             else:
                 payload_size = self.byte_counter.to_bytes(1,'big')
 
-            tx_header = [0x50,seq_counter_bytes[1:2],seq_counter_bytes[0:1],payload_size]
-            tx_payload = self.image_array[self.byte_counter]
+            tx_header = bytes([0x50,seq_counter_bytes[0],seq_counter_bytes[1],payload_size[0]])
+            tx_payload = self.image_array[self.sequence_counter]
             tx_message = tx_header + tx_payload
 
             self.byte_counter -= 128
             self.sequence_counter += 1
         else:
-            tx_header = [0x21,0x0,0x0,0x8]
-            tx_payload = [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7]
+            tx_header = bytes([0x21,0x0,0x0,0x0])
+            tx_payload = bytes([0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7])
             tx_message = tx_header + tx_payload
+    
+        print(list(tx_header))
 
         # Send a message to the satellite device with address 10
         # Retry sending the message twice if we don't get an acknowledgment from the recipient
