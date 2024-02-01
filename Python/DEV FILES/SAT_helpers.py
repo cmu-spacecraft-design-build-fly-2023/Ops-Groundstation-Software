@@ -55,7 +55,6 @@ class SATELLITE:
         global received_success 
         received_success = False
         lora.set_mode_rx()
-        time.sleep(0.1)
 
         while received_success == False:
             time.sleep(0.1)
@@ -76,7 +75,7 @@ class SATELLITE:
     '''
     def unpack_message(self,lora):
         self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='little')
-        print("Message ID:",self.message_ID)
+        print("Message received header:",list(lora._last_payload.message[0:4]))
 
     '''
         Name: transmit_message
@@ -104,11 +103,11 @@ class SATELLITE:
             self.byte_counter -= 128
             self.sequence_counter += 1
         else:
-            tx_header = bytes([0x21,0x0,0x0,0x0])
+            tx_header = bytes([0x1,0x0,0x0,0x0])
             tx_payload = bytes([0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7])
             tx_message = tx_header + tx_payload
     
-        print(list(tx_header))
+        print("Message sent header:",list(tx_header))
 
         # Send a message to the satellite device with address 10
         # Retry sending the message twice if we don't get an acknowledgment from the recipient
@@ -121,6 +120,9 @@ class SATELLITE:
         else:
             print("No acknowledgment from recipient")
             print("\n")
+
+        while not lora.wait_packet_sent():
+            pass
 
 '''
     Name: on_recv
