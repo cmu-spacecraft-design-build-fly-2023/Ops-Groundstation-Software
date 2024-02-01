@@ -37,6 +37,8 @@ class GROUNDSTATION:
         # Image Info class
         self.sat_images = IMAGES()
 
+        self.image_array = []
+
     '''
         Name: received_message
         Description: This function waits for a message to be received from the LoRa module
@@ -47,7 +49,6 @@ class GROUNDSTATION:
         global received_success 
         received_success = False
         lora.set_mode_rx()
-        time.sleep(0.1)
 
         while received_success == False:
             time.sleep(0.1)
@@ -57,7 +58,6 @@ class GROUNDSTATION:
         # print("Received:", payload.message)
         # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
         # print('')
-
         self.unpack_message(lora)
 
     '''
@@ -76,11 +76,16 @@ class GROUNDSTATION:
             self.new_session = True
         else:
             print("Telemetry or image received!")
-            print("Message ID:",self.message_ID)
-            print("Sequence Count:",self.message_sequence_count)
-            print("Message Size:",self.message_size)
-            print(len(lora._last_payload.message))
-            # print(lora._last_payload.message)
+            print("Message received header:",list(lora._last_payload.message[0:4]))
+            self.image_array.append(lora._last_payload.message[4:132])
+
+            if self.message_sequence_count == 27:
+                rec_bytes = open('rximage.jpg','wb')
+                
+                for i in range(self.message_sequence_count+1):
+                    rec_bytes.write(self.image_array[i])
+
+                rec_bytes.close()
 
     '''
         Name: transmit_message
@@ -91,7 +96,7 @@ class GROUNDSTATION:
     def transmit_message(self,lora):
         # Set radio to TX mode
         lora.set_mode_tx()
-        time.sleep(0.5)
+        time.sleep(0.25)
 
         if self.num_commands_sent < self.cmd_queue_size:
             lora_tx_message = self.pack_telemetry_command()
@@ -109,6 +114,9 @@ class GROUNDSTATION:
         else:
             print("No acknowledgment from recipient")
             print("\n")
+
+        while not lora.wait_packet_sent():
+            pass
 
         self.last_gs_cmd = self.gs_cmd
 
