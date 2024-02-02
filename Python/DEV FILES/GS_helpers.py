@@ -3,6 +3,7 @@ from message_database_dev import *
 from image_class_dev import *
 import time
 import sys
+import datetime
 
 # Globals
 received_success = False
@@ -71,31 +72,70 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def unpack_message(self,lora):
+        # Unpack header information - Received header, sequence count, and message size
         self.rx_message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='big')
         self.rx_message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='big')
         self.rx_message_size = int.from_bytes(lora._last_payload.message[3:4],byteorder='big')
+
         if self.rx_message_ID == SAT_HEARTBEAT:
             print("Heartbeat received!")
             self.num_commands_sent = 0
             self.new_session = True
         elif self.rx_message_ID == SAT_IMAGES:
-            print("Image info received!")
-            print("Message received header:",list(lora._last_payload.message[0:4]))
-            print("Image Info:",list(lora._last_payload.message[4:12]))
+            self.image_info_unpack(lora)
+        elif self.rx_message_ID == SAT_IMG1_CMD:
+            self.image_unpack(lora)
         else:
             print("Telemetry or image received!")
             print("Message received header:",list(lora._last_payload.message[0:4]))
+    
+    '''
+        Name: image_info_unpack
+        Description: This function unpacks the image information from
+        satellite such as command IDs, UIDs, size (KB), and message counts
+        Inputs
+            lora - lora - Declaration of lora class
+    '''
+    def image_info_unpack(self,lora):
+        # Get image #1 information
+        self.sat_images.image_1_CMD_ID = int.from_bytes(lora._last_payload.message[4:5],byteorder='big')
+        self.sat_images.image_1_UID = int.from_bytes(lora._last_payload.message[5:6],byteorder='big')
+        self.sat_images.image_1_size = int.from_bytes(lora._last_payload.message[6:10],byteorder='big')
+        self.sat_images.image_1_message_count = int.from_bytes(lora._last_payload.message[10:12],byteorder='big')
 
-            '''
-            self.image_array.append(lora._last_payload.message[4:132])
-            if self.message_sequence_count == 44:
-                rec_bytes = open('rximage.jpg','wb')
-                
-                for i in range(self.message_sequence_count+1):
-                    rec_bytes.write(self.image_array[i])         
+        # Diagnostic prints
+        print("Image info received!")
+        print("Message received header:",list(lora._last_payload.message[0:4]))
+        print("Image 1 CMD ID:",self.sat_images.image_1_CMD_ID)
+        print("Image 1 UID:",self.sat_images.image_1_UID)
+        print("Image 1 size:",self.sat_images.image_1_size,"KB")
+        print("Image 1 message count:",self.sat_images.image_1_message_count)
 
-                rec_bytes.close()
-            '''
+    '''
+        Name: image_unpack
+        Description: This function unpacks the contents of the image and stores
+        the image in a file when the complete image has been received.
+        Inputs
+            lora - Declaration of lora class
+    '''
+    def image_unpack(self,lora):
+        self.image_array.append(lora._last_payload.message[4:self.rx_message_size + 4])
+        if self.rx_message_sequence_count == (self.target_sequence_count - 1):
+            # Get the current time
+            current_time = datetime.datetime.now()
+
+            # Format the current time
+            formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S")
+
+            # Create image name
+            filename = f"earth_image_{formatted_time}.jpg"
+
+            rec_bytes = open(filename,'wb')
+            
+            for i in range(self.target_sequence_count):
+                rec_bytes.write(self.image_array[i])         
+
+            rec_bytes.close()
 
     '''
         Name: transmit_message
