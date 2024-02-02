@@ -83,7 +83,7 @@ class GROUNDSTATION:
             self.new_session = True
         elif self.rx_message_ID == SAT_IMAGES:
             self.image_info_unpack(lora)
-        elif self.rx_message_ID == SAT_IMG1_CMD:
+        elif ((self.rx_message_ID == SAT_IMG1_CMD) or (self.rx_message_ID == SAT_IMG2_CMD) or (self.rx_message_ID == SAT_IMG3_CMD)):
             self.image_unpack(lora)
         else:
             print("Telemetry or image received!")
@@ -102,14 +102,35 @@ class GROUNDSTATION:
         self.sat_images.image_1_UID = int.from_bytes(lora._last_payload.message[5:6],byteorder='big')
         self.sat_images.image_1_size = int.from_bytes(lora._last_payload.message[6:10],byteorder='big')
         self.sat_images.image_1_message_count = int.from_bytes(lora._last_payload.message[10:12],byteorder='big')
+        # Get image #2 information
+        self.sat_images.image_2_CMD_ID = int.from_bytes(lora._last_payload.message[12:13],byteorder='big')
+        self.sat_images.image_2_UID = int.from_bytes(lora._last_payload.message[13:14],byteorder='big')
+        self.sat_images.image_2_size = int.from_bytes(lora._last_payload.message[14:18],byteorder='big')
+        self.sat_images.image_2_message_count = int.from_bytes(lora._last_payload.message[18:20],byteorder='big')
+        # Get image #3 information
+        self.sat_images.image_3_CMD_ID = int.from_bytes(lora._last_payload.message[20:21],byteorder='big')
+        self.sat_images.image_3_UID = int.from_bytes(lora._last_payload.message[21:22],byteorder='big')
+        self.sat_images.image_3_size = int.from_bytes(lora._last_payload.message[22:26],byteorder='big')
+        self.sat_images.image_3_message_count = int.from_bytes(lora._last_payload.message[26:28],byteorder='big')
 
         # Diagnostic prints
         print("Image info received!")
         print("Message received header:",list(lora._last_payload.message[0:4]))
+
         print("Image 1 CMD ID:",self.sat_images.image_1_CMD_ID)
         print("Image 1 UID:",self.sat_images.image_1_UID)
         print("Image 1 size:",self.sat_images.image_1_size,"KB")
         print("Image 1 message count:",self.sat_images.image_1_message_count)
+
+        print("Image 2 CMD ID:",self.sat_images.image_2_CMD_ID)
+        print("Image 2 UID:",self.sat_images.image_2_UID)
+        print("Image 2 size:",self.sat_images.image_2_size,"KB")
+        print("Image 2 message count:",self.sat_images.image_2_message_count)
+
+        print("Image 3 CMD ID:",self.sat_images.image_3_CMD_ID)
+        print("Image 3 UID:",self.sat_images.image_3_UID)
+        print("Image 3 size:",self.sat_images.image_3_size,"KB")
+        print("Image 3 message count:",self.sat_images.image_3_message_count)
 
     '''
         Name: image_unpack
@@ -136,6 +157,7 @@ class GROUNDSTATION:
                 rec_bytes.write(self.image_array[i])         
 
             rec_bytes.close()
+            self.image_array.clear()
 
     '''
         Name: transmit_message
@@ -144,7 +166,7 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def transmit_message(self,lora):
-        time.sleep(0.25)
+        time.sleep(0.2)
 
         if self.num_commands_sent < self.cmd_queue_size:
             lora_tx_message = self.pack_telemetry_command()
@@ -180,8 +202,8 @@ class GROUNDSTATION:
 
         # Payload to transmit
         # Simulated for now!
-        lora_tx_header = [GS_ACK, 0x00, 0x01, 0x4]
-        lora_tx_payload = [self.rx_message_ID, self.gs_cmd, 0x0]
+        lora_tx_header = bytes([GS_ACK, 0x00, 0x01, 0x4])
+        lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + (0x0).to_bytes(2,'big'))
         lora_tx_message = lora_tx_header + lora_tx_payload
 
         return lora_tx_message
@@ -196,15 +218,15 @@ class GROUNDSTATION:
 
         if ((self.gs_cmd == SAT_DEL_IMG1) or (self.gs_cmd == SAT_DEL_IMG2) or (self.gs_cmd == SAT_DEL_IMG3) or (self.new_session == True)):
             self.gs_cmd = SAT_IMAGES
-            lora_tx_header = [GS_ACK, 0x00, 0x01, 0x4]
-            lora_tx_payload = [self.rx_message_ID, self.gs_cmd, 0x0]
+            lora_tx_header = bytes([GS_ACK, 0x00, 0x01, 0x4])
+            lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + (0x0).to_bytes(2,'big'))
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Session is no longer "new" after telemetry has been retrieved
             self.new_session = False
         elif ((self.sequence_counter >= self.target_sequence_count) and (self.target_sequence_count != 0)):
             self.gs_cmd = SAT_DEL_IMG1
-            lora_tx_header = [GS_ACK, 0x00, 0x01, 0x4]
-            lora_tx_payload = [self.rx_message_ID, self.gs_cmd, 0x0]
+            lora_tx_header = bytes([GS_ACK, 0x00, 0x01, 0x4])
+            lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + (0x0).to_bytes(2,'big'))
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Reset sequence counter and get new image
             self.sequence_counter = 0
@@ -213,17 +235,38 @@ class GROUNDSTATION:
             else:
                 self.image_num = IMAGE_DEFS.IMAGE_1.value
         else:
-            self.target_image_CMD_ID = self.sat_images.image_1_CMD_ID
-            self.target_image_UID = self.sat_images.image_1_UID
-            self.target_sequence_count = self.sat_images.image_1_message_count       
-            self.gs_cmd = 0x50
-            lora_tx_header = [GS_ACK, 0x00, 0x01, 0x4]
-            lora_tx_payload = [self.rx_message_ID, self.gs_cmd, self.sequence_counter]
+            self.pick_image()
+            lora_tx_header = bytes([GS_ACK, 0x00, 0x00, 0x4])
+            lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + self.sequence_counter.to_bytes(2,'big'))
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Increment sequence counter
             self.sequence_counter += 1
 
         return lora_tx_message
+
+    '''
+        Name: pick_image
+        Description: Picks what image to send based on the current image number.
+    '''
+    def pick_image(self):
+        # Fetch image #2
+        if self.image_num == IMAGE_DEFS.IMAGE_2.value:
+            self.target_image_CMD_ID = self.sat_images.image_2_CMD_ID
+            self.target_image_UID = self.sat_images.image_2_UID
+            self.target_sequence_count = self.sat_images.image_2_message_count       
+            self.gs_cmd = self.sat_images.image_2_CMD_ID
+        # Fetch image #3
+        elif self.image_num == IMAGE_DEFS.IMAGE_3.value:
+            self.target_image_CMD_ID = self.sat_images.image_3_CMD_ID
+            self.target_image_UID = self.sat_images.image_3_UID
+            self.target_sequence_count = self.sat_images.image_3_message_count       
+            self.gs_cmd = self.sat_images.image_3_CMD_ID
+        # Fetch image #1
+        else:
+            self.target_image_CMD_ID = self.sat_images.image_1_CMD_ID
+            self.target_image_UID = self.sat_images.image_1_UID
+            self.target_sequence_count = self.sat_images.image_1_message_count       
+            self.gs_cmd = self.sat_images.image_1_CMD_ID
 
 '''
     Name: on_recv
