@@ -1,7 +1,7 @@
 from enum import Enum
 import os
 from message_database_dev import *
-from gs_class_dev import *
+from image_class_dev import *
 import time
 
 # Globals
@@ -15,18 +15,22 @@ class SATELLITE:
     def __init__(self):
         # Get image from memory
         self.image_array = []
+        # Setup image class
+        self.sat_images = IMAGES()
+        self.sat_images.image_1_CMD_ID = 0x50
+        self.sat_images.image_1_UID = 0x1
         # Get image size and number of messages it requires
-        self.image_size = os.path.getsize('tinyimage.jpg')
-        self.image_message_count = int(self.image_size / 128)
+        self.sat_images.image_1_size = os.path.getsize('IMAGES/nyc_small.jpg')
+        self.sat_images.image_1_message_count = int(self.sat_images.image_1_size / 128)
 
-        if ((self.image_size % 128) > 0):
-            self.image_message_count += 1    
+        if ((self.sat_images.image_1_size % 128) > 0):
+            self.sat_images.image_1_message_count += 1    
 
-        print("Image size is",self.image_size,"bytes")
-        print("This image requires",self.image_message_count,"messages")
+        print("Image size is", self.sat_images.image_1_size,"bytes")
+        print("This image requires",self.sat_images.image_1_message_count,"messages")
 
-        bytes_remaining = self.image_size
-        send_bytes = open('tinyimage.jpg','rb')
+        bytes_remaining = self.sat_images.image_1_size
+        send_bytes = open('IMAGES/nyc_small.jpg','rb')
 
         # Loop through image and store contents in an array
         while (bytes_remaining > 0):
@@ -43,7 +47,7 @@ class SATELLITE:
 
         # Sequence counter for image transfer
         self.sequence_counter = int(0)
-        self.byte_counter = int(self.image_size)
+        self.byte_counter = int(self.sat_images.image_1_size)
 
     '''
         Name: received_message
@@ -84,11 +88,9 @@ class SATELLITE:
             lora - Declaration of lora class
     '''
     def transmit_message(self,lora):
-        # Set radio to TX mode
-        lora.set_mode_tx()
         time.sleep(0.25)
 
-        if (self.sequence_counter < self.image_message_count):
+        if (self.sequence_counter < self.sat_images.image_1_message_count):
             seq_counter_bytes = self.sequence_counter.to_bytes(2,'big')
         
             if (self.byte_counter > 128):
@@ -111,6 +113,7 @@ class SATELLITE:
 
         # Send a message to the satellite device with address 10
         # Retry sending the message twice if we don't get an acknowledgment from the recipient
+    
         status = lora.send(tx_message, 10)
 
         # Check for groundstation acknowledgement 
