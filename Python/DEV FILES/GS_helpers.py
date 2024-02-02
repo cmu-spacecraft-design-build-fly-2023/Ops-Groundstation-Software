@@ -2,6 +2,7 @@ from enum import Enum
 from message_database_dev import *
 from image_class_dev import *
 import time
+import sys
 
 # Globals
 received_success = False
@@ -36,10 +37,11 @@ class GROUNDSTATION:
         self.target_sequence_count = 0
         # Image Info class
         self.sat_images = IMAGES()
-
         self.image_array = []
         # RX message info
-        self.message_ID = 0x0
+        self.rx_message_ID = 0x0
+        self.rx_message_sequence_count = 0
+        self.rx_message_size = 0
 
     '''
         Name: received_message
@@ -69,25 +71,31 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def unpack_message(self,lora):
-        self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='big')
-        self.message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='big')
-        self.message_size = int.from_bytes(lora._last_payload.message[3:4],byteorder='big')
-        if self.message_ID == SAT_HEARTBEAT:
+        self.rx_message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='big')
+        self.rx_message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='big')
+        self.rx_message_size = int.from_bytes(lora._last_payload.message[3:4],byteorder='big')
+        if self.rx_message_ID == SAT_HEARTBEAT:
             print("Heartbeat received!")
             self.num_commands_sent = 0
             self.new_session = True
+        elif self.rx_message_ID == SAT_IMAGES:
+            print("Image info received!")
+            print("Message received header:",list(lora._last_payload.message[0:4]))
+            print("Image Info:",list(lora._last_payload.message[4:12]))
         else:
             print("Telemetry or image received!")
             print("Message received header:",list(lora._last_payload.message[0:4]))
-            self.image_array.append(lora._last_payload.message[4:132])
 
+            '''
+            self.image_array.append(lora._last_payload.message[4:132])
             if self.message_sequence_count == 44:
                 rec_bytes = open('rximage.jpg','wb')
                 
                 for i in range(self.message_sequence_count+1):
-                    rec_bytes.write(self.image_array[i])
+                    rec_bytes.write(self.image_array[i])         
 
                 rec_bytes.close()
+            '''
 
     '''
         Name: transmit_message
@@ -133,7 +141,7 @@ class GROUNDSTATION:
         # Payload to transmit
         # Simulated for now!
         lora_tx_header = [GS_ACK, 0x00, 0x01, 0x4]
-        lora_tx_payload = [self.message_ID, self.gs_cmd, 0x0]
+        lora_tx_payload = [self.rx_message_ID, self.gs_cmd, 0x0]
         lora_tx_message = lora_tx_header + lora_tx_payload
 
         return lora_tx_message
@@ -149,14 +157,14 @@ class GROUNDSTATION:
         if ((self.gs_cmd == SAT_DEL_IMG1) or (self.gs_cmd == SAT_DEL_IMG2) or (self.gs_cmd == SAT_DEL_IMG3) or (self.new_session == True)):
             self.gs_cmd = SAT_IMAGES
             lora_tx_header = [GS_ACK, 0x00, 0x01, 0x4]
-            lora_tx_payload = [self.message_ID, self.gs_cmd, 0x0]
+            lora_tx_payload = [self.rx_message_ID, self.gs_cmd, 0x0]
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Session is no longer "new" after telemetry has been retrieved
             self.new_session = False
         elif ((self.sequence_counter >= self.target_sequence_count) and (self.target_sequence_count != 0)):
             self.gs_cmd = SAT_DEL_IMG1
             lora_tx_header = [GS_ACK, 0x00, 0x01, 0x4]
-            lora_tx_payload = [self.message_ID, self.gs_cmd, 0x0]
+            lora_tx_payload = [self.rx_message_ID, self.gs_cmd, 0x0]
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Reset sequence counter and get new image
             self.sequence_counter = 0
@@ -170,7 +178,7 @@ class GROUNDSTATION:
             self.target_sequence_count = self.sat_images.image_1_message_count       
             self.gs_cmd = 0x50
             lora_tx_header = [GS_ACK, 0x00, 0x01, 0x4]
-            lora_tx_payload = [self.message_ID, self.gs_cmd, self.sequence_counter]
+            lora_tx_payload = [self.rx_message_ID, self.gs_cmd, self.sequence_counter]
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Increment sequence counter
             self.sequence_counter += 1
@@ -186,3 +194,13 @@ class GROUNDSTATION:
 def on_recv(payload):
     global received_success 
     received_success = True
+
+'''
+    Name: hard_exit
+    Description: Shutdown when ctrl-c is pressed
+    Inputs: 
+        lora - Declaration of lora class
+'''
+def hard_exit(lora, signum, frame):
+    lora.close()
+    sys.exit(0)
