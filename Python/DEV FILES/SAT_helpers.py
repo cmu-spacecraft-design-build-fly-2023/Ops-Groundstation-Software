@@ -20,7 +20,7 @@ class SATELLITE:
         self.sat_images.image_1_CMD_ID = 0x50
         self.sat_images.image_1_UID = 0x1
         # Get image size and number of messages it requires
-        self.sat_images.image_1_size = os.path.getsize('IMAGES/nyc_small.jpg')
+        self.sat_images.image_1_size = int(os.path.getsize('IMAGES/nyc_small.jpg'))
         self.sat_images.image_1_message_count = int(self.sat_images.image_1_size / 128)
 
         if ((self.sat_images.image_1_size % 128) > 0):
@@ -45,9 +45,7 @@ class SATELLITE:
         
         send_bytes.close()
 
-        # Sequence counter for image transfer
-        self.sequence_counter = int(0)
-        self.byte_counter = int(self.sat_images.image_1_size)
+        self.heartbeat_sent = False
 
     '''
         Name: received_message
@@ -78,9 +76,16 @@ class SATELLITE:
             lora - Declaration of lora class
     '''
     def unpack_message(self,lora):
-        self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='little')
+        self.rx_message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='big')
+        self.rx_message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='big')
+        self.rx_message_size = int.from_bytes(lora._last_payload.message[3:4],byteorder='big')
         print("Message received header:",list(lora._last_payload.message[0:4]))
 
+        if (self.rx_message_ID == GS_ACK):
+            self.gs_rx_message_ID = int.from_bytes(lora._last_payload.message[4:5],byteorder='big')
+            self.gs_req_message_ID = int.from_bytes(lora._last_payload.message[5:6],byteorder='big')
+            self.gs_req_seq_count = int.from_bytes(lora._last_payload.message[6:8],byteorder='big')
+            
     '''
         Name: transmit_message
         Description: Ground station transmits a message via the LoRa module when the function is called.
@@ -90,24 +95,19 @@ class SATELLITE:
     def transmit_message(self,lora):
         time.sleep(0.25)
 
-        if (self.sequence_counter < self.sat_images.image_1_message_count):
-            seq_counter_bytes = self.sequence_counter.to_bytes(2,'big')
-        
-            if (self.byte_counter > 128):
-                payload_size = bytes([128])
-            else:
-                payload_size = self.byte_counter.to_bytes(1,'big')
-
-            tx_header = bytes([0x50,seq_counter_bytes[0],seq_counter_bytes[1],payload_size[0]])
-            tx_payload = self.image_array[self.sequence_counter]
+        if not self.heartbeat_sent:
+            tx_header = bytes([0x1,0x0,0x0,0xF])
+            tx_payload = bytes([0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0])
             tx_message = tx_header + tx_payload
-
-            self.byte_counter -= 128
-            self.sequence_counter += 1
+            self.heartbeat_sent = True
+        elif self.gs_req_message_ID == SAT_IMAGES:
+            tx_header = bytes([SAT_IMAGES,0x0,0x0,0x18])
+            tx_payload = (self.sat_images.image_1_CMD_ID.to_bytes(1,'big') + self.sat_images.image_1_UID.to_bytes(1,'big') +
+                          self.sat_images.image_1_size.to_bytes(4,'big') + self.sat_images.image_1_message_count.to_bytes(2,'big'))
+            tx_message = tx_header + tx_payload
         else:
-            tx_header = bytes([0x1,0x0,0x0,0x0])
-            tx_payload = bytes([0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7])
-            tx_message = tx_header + tx_payload
+            tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
+            tx_message = tx_header
     
         print("Message sent header:",list(tx_header))
 
