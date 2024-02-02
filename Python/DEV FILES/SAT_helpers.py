@@ -3,6 +3,7 @@ import os
 from message_database_dev import *
 from image_class_dev import *
 import time
+import sys
 
 # Globals
 received_success = False
@@ -136,3 +137,13 @@ class SATELLITE:
 def on_recv(payload):
     global received_success 
     received_success = True
+
+'''
+    Name: hard_exit
+    Description: Shutdown when ctrl-c is pressed
+    Inputs: 
+        lora - Declaration of lora class
+'''
+def hard_exit(lora, signum, frame):
+    lora.close()
+    sys.exit(0)

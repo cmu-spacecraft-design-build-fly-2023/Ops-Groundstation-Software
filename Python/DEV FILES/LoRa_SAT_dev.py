@@ -3,6 +3,7 @@ from message_database_dev import *
 from SAT_helpers import *
 import time
 import signal
+import sys
 
 SAT = SATELLITE()
 
@@ -14,7 +15,7 @@ lora = LoRa(0, 19, 2, modem_config=ModemConfig.Bw125Cr45Sf128, tx_power=18, acks
 lora.on_recv = on_recv
 
 # Setup interrupt
-signal.signal(signal.SIGINT, lora.close)
+signal.signal(signal.SIGINT, lambda signum, frame: hard_exit(lora, signum, frame))
 
 while True:
     SAT.transmit_message(lora)
