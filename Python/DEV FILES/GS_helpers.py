@@ -1,6 +1,6 @@
 from enum import Enum
 from message_database_dev import *
-from gs_class_dev import *
+from image_class_dev import *
 import time
 
 # Globals
@@ -38,6 +38,8 @@ class GROUNDSTATION:
         self.sat_images = IMAGES()
 
         self.image_array = []
+        # RX message info
+        self.message_ID = 0x0
 
     '''
         Name: received_message
@@ -79,7 +81,7 @@ class GROUNDSTATION:
             print("Message received header:",list(lora._last_payload.message[0:4]))
             self.image_array.append(lora._last_payload.message[4:132])
 
-            if self.message_sequence_count == 27:
+            if self.message_sequence_count == 44:
                 rec_bytes = open('rximage.jpg','wb')
                 
                 for i in range(self.message_sequence_count+1):
@@ -94,8 +96,6 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def transmit_message(self,lora):
-        # Set radio to TX mode
-        lora.set_mode_tx()
         time.sleep(0.25)
 
         if self.num_commands_sent < self.cmd_queue_size:
@@ -105,6 +105,7 @@ class GROUNDSTATION:
 
         # Send a message to the satellite device with address 2
         # Retry sending the message twice if we don't get an acknowledgment from the recipient
+    
         status = lora.send(lora_tx_message, 2)
 
         # Check for groundstation acknowledgement 
