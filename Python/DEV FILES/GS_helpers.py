@@ -1,6 +1,6 @@
 from enum import Enum
 from message_database_dev import *
-from gs_class_dev import *
+from image_class_dev import *
 import time
 
 # Globals
@@ -37,6 +37,10 @@ class GROUNDSTATION:
         # Image Info class
         self.sat_images = IMAGES()
 
+        self.image_array = []
+        # RX message info
+        self.message_ID = 0x0
+
     '''
         Name: received_message
         Description: This function waits for a message to be received from the LoRa module
@@ -47,7 +51,6 @@ class GROUNDSTATION:
         global received_success 
         received_success = False
         lora.set_mode_rx()
-        time.sleep(0.1)
 
         while received_success == False:
             time.sleep(0.1)
@@ -57,7 +60,6 @@ class GROUNDSTATION:
         # print("Received:", payload.message)
         # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
         # print('')
-
         self.unpack_message(lora)
 
     '''
@@ -67,13 +69,25 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def unpack_message(self,lora):
-        self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='little')
+        self.message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='big')
+        self.message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='big')
+        self.message_size = int.from_bytes(lora._last_payload.message[3:4],byteorder='big')
         if self.message_ID == SAT_HEARTBEAT:
             print("Heartbeat received!")
             self.num_commands_sent = 0
             self.new_session = True
         else:
             print("Telemetry or image received!")
+            print("Message received header:",list(lora._last_payload.message[0:4]))
+            self.image_array.append(lora._last_payload.message[4:132])
+
+            if self.message_sequence_count == 44:
+                rec_bytes = open('rximage.jpg','wb')
+                
+                for i in range(self.message_sequence_count+1):
+                    rec_bytes.write(self.image_array[i])
+
+                rec_bytes.close()
 
     '''
         Name: transmit_message
@@ -82,9 +96,7 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def transmit_message(self,lora):
-        # Set radio to TX mode
-        lora.set_mode_tx()
-        time.sleep(0.1)
+        time.sleep(0.25)
 
         if self.num_commands_sent < self.cmd_queue_size:
             lora_tx_message = self.pack_telemetry_command()
@@ -93,6 +105,7 @@ class GROUNDSTATION:
 
         # Send a message to the satellite device with address 2
         # Retry sending the message twice if we don't get an acknowledgment from the recipient
+    
         status = lora.send(lora_tx_message, 2)
 
         # Check for groundstation acknowledgement 
@@ -102,6 +115,9 @@ class GROUNDSTATION:
         else:
             print("No acknowledgment from recipient")
             print("\n")
+
+        while not lora.wait_packet_sent():
+            pass
 
         self.last_gs_cmd = self.gs_cmd
 
@@ -170,27 +186,3 @@ class GROUNDSTATION:
 def on_recv(payload):
     global received_success 
     received_success = True
-
-'''
-    Name: sat_transmit_message
-    Description: Satellite transmits a message via the LoRa module when the function is called.
-    Inputs:
-        lora - Declaration of lora class
-        lora_tx_message - message to be transmitted
-'''
-def sat_transmit_message(lora, lora_tx_message):
-    # Set radio to TX mode
-    lora.set_mode_tx()
-    time.sleep(0.1)
-
-    # Send a message to ground station device with address 10
-    # Retry sending the message twice if we don't get an acknowledgment from the recipient
-    status = lora.send(lora_tx_message, 10)
-
-    # Check for groundstation acknowledgement 
-    if status is True:
-        print("Satellite sent message: [", *[hex(num) for num in lora_tx_message], "]")
-        print("\n")
-    else:
-        print("No acknowledgment from recipient")
-        print("\n")
