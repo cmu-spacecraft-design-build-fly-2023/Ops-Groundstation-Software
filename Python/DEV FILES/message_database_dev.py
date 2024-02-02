@@ -28,5 +28,7 @@ SAT_DEL_IMG1 = 0x22
 SAT_DEL_IMG2 = 0x23
 SAT_DEL_IMG3 = 0x24
 
+SAT_IMG1_CMD = 0x50
+
 # TX message packet (empty header) 
 # to add payload, generate payload list and add

@@ -46,6 +46,8 @@ class SATELLITE:
         
         send_bytes.close()
 
+        print(len(self.image_array[0]))
+
         self.heartbeat_sent = False
 
     '''
@@ -105,6 +107,11 @@ class SATELLITE:
             tx_header = bytes([SAT_IMAGES,0x0,0x0,0x18])
             tx_payload = (self.sat_images.image_1_CMD_ID.to_bytes(1,'big') + self.sat_images.image_1_UID.to_bytes(1,'big') +
                           self.sat_images.image_1_size.to_bytes(4,'big') + self.sat_images.image_1_message_count.to_bytes(2,'big'))
+            tx_message = tx_header + tx_payload
+        elif self.gs_req_message_ID == SAT_IMG1_CMD:
+            tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + self.gs_req_seq_count.to_bytes(2,'big') \
+                        + len(self.image_array[self.gs_req_seq_count]).to_bytes(1,'big'))
+            tx_payload = self.image_array[self.gs_req_seq_count]
             tx_message = tx_header + tx_payload
         else:
             tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
