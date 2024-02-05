@@ -81,6 +81,11 @@ class GROUNDSTATION:
             print("Heartbeat received!")
             self.num_commands_sent = 0
             self.new_session = True
+            # If last command was an image, refetch last portion of image 
+            # to make sure it was received correctly.
+            if ((self.gs_cmd == self.sat_images.image_1_CMD_ID) or (self.gs_cmd == self.sat_images.image_2_CMD_ID) or (self.gs_cmd == self.sat_images.image_3_CMD_ID)):
+                self.sequence_counter -= 1
+                self.image_array.pop(self.sequence_counter)
         elif self.rx_message_ID == SAT_IMAGES:
             self.image_info_unpack(lora)
         elif ((self.rx_message_ID == SAT_IMG1_CMD) or (self.rx_message_ID == SAT_IMG2_CMD) or (self.rx_message_ID == SAT_IMG3_CMD)):
@@ -113,6 +118,8 @@ class GROUNDSTATION:
         self.sat_images.image_3_size = int.from_bytes(lora._last_payload.message[22:26],byteorder='big')
         self.sat_images.image_3_message_count = int.from_bytes(lora._last_payload.message[26:28],byteorder='big')
 
+        self.image_verification()
+
         # Diagnostic prints
         print("Image info received!")
         print("Message received header:",list(lora._last_payload.message[0:4]))
@@ -133,6 +140,22 @@ class GROUNDSTATION:
         print("Image 3 message count:",self.sat_images.image_3_message_count)
 
     '''
+        Name: image_verification
+        Description: Ensures the satellite did not delete any images since the last pass.
+                     Will reset the sequence counter if new image was loaded.
+    '''
+    def image_verification(self):
+        if ((self.image_num == IMAGE_DEFS.IMAGE_2.value) and (self.target_image_UID != self.sat_images.image_2_UID)):
+            self.sequence_counter = 0
+            self.image_array.clear()
+        elif ((self.image_num == IMAGE_DEFS.IMAGE_3.value) and (self.target_image_UID != self.sat_images.image_3_UID)):
+            self.sequence_counter = 0
+            self.image_array.clear()
+        elif ((self.image_num == IMAGE_DEFS.IMAGE_1.value) and (self.target_image_UID != self.sat_images.image_1_UID)):
+            self.sequence_counter = 0
+            self.image_array.clear()
+
+    '''
         Name: image_unpack
         Description: This function unpacks the contents of the image and stores
         the image in a file when the complete image has been received.
@@ -141,6 +164,8 @@ class GROUNDSTATION:
     '''
     def image_unpack(self,lora):
         self.image_array.append(lora._last_payload.message[4:self.rx_message_size + 4])
+        # Increment sequence counter
+        self.sequence_counter += 1
         if self.rx_message_sequence_count == (self.target_sequence_count - 1):
             # Get the current time
             current_time = datetime.datetime.now()
@@ -166,7 +191,7 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def transmit_message(self,lora):
-        time.sleep(0.2)
+        time.sleep(0.15)
 
         if self.num_commands_sent < self.cmd_queue_size:
             lora_tx_message = self.pack_telemetry_command()
@@ -239,8 +264,6 @@ class GROUNDSTATION:
             lora_tx_header = bytes([GS_ACK, 0x00, 0x00, 0x4])
             lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + self.sequence_counter.to_bytes(2,'big'))
             lora_tx_message = lora_tx_header + lora_tx_payload
-            # Increment sequence counter
-            self.sequence_counter += 1
 
         return lora_tx_message
 

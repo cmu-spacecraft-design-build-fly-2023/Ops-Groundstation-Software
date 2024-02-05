@@ -29,7 +29,7 @@ class SATELLITE:
         # Setup image class
         self.sat_images = IMAGES()
         # Setup initial image UIDs
-        self.sat_images.image_1_UID = 0x1
+        self.sat_images.image_1_UID = 0x5
         self.sat_images.image_2_UID = 0x2
         self.sat_images.image_3_UID = 0x3
 
@@ -153,7 +153,7 @@ class SATELLITE:
             lora - Declaration of lora class
     '''
     def transmit_message(self,lora):
-        time.sleep(0.2)
+        time.sleep(0.15)
 
         if not self.heartbeat_sent:
             tx_header = bytes([0x1,0x0,0x0,0xF])
