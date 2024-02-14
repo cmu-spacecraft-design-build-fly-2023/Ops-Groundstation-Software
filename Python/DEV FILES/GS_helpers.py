@@ -3,7 +3,14 @@ from message_database_dev import *
 from image_class_dev import *
 import time
 import sys
+import os
 import datetime
+import boto3
+
+AWS_S3_BUCKET_NAME = 'spacecraft-files'
+AWS_REGION = 'us-east-2'
+AWS_ACCESS_KEY = 'ASK D.J.'
+AWS_SECRET_KEY = 'ASK D.J.'
 
 # Globals
 received_success = False
@@ -19,6 +26,14 @@ class GROUNDSTATION:
         Description: Initialization of GROUNDSTATION class
     '''
     def __init__(self):
+        print('Setting up AWS')
+        self.s3_client = boto3.client(
+            service_name='s3',
+            region_name=AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY
+        )
+
         # New contact from the satellite
         # Changes to True when heartbeat is received, false when image transfer starts
         self.new_session = False
@@ -92,6 +107,10 @@ class GROUNDSTATION:
             self.image_unpack(lora)
         else:
             print("Telemetry or image received!")
+            print("Lora header_to:",lora._last_payload.header_to)
+            print("Lora header_from:",lora._last_payload.header_from)
+            print("Lora header_id:",lora._last_payload.header_id)
+            print("Lora header_flags:",lora._last_payload.header_flags)
             print("Message received header:",list(lora._last_payload.message[0:4]))
     
     '''
@@ -182,7 +201,12 @@ class GROUNDSTATION:
                 rec_bytes.write(self.image_array[i])         
 
             rec_bytes.close()
+
+            response = self.s3_client.upload_file(filename, AWS_S3_BUCKET_NAME, filename)
+            print(f'upload_log_to_aws response: {response}')
+            time.sleep(1)
             self.image_array.clear()
+            os.remove(filename)
 
     '''
         Name: transmit_message
