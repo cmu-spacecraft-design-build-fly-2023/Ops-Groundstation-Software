@@ -10,7 +10,7 @@ import boto3
 AWS_S3_BUCKET_NAME = 'spacecraft-files'
 AWS_REGION = 'us-east-2'
 AWS_ACCESS_KEY = 'ASK D.J.'
-AWS_SECRET_KEY = 'Ask D.J., I am not putting my secret key on Git ;)'
+AWS_SECRET_KEY = 'ASK D.J.'
 
 # Globals
 received_success = False
@@ -204,6 +204,7 @@ class GROUNDSTATION:
 
             response = self.s3_client.upload_file(filename, AWS_S3_BUCKET_NAME, filename)
             print(f'upload_log_to_aws response: {response}')
+            time.sleep(1)
             self.image_array.clear()
             os.remove(filename)
 
