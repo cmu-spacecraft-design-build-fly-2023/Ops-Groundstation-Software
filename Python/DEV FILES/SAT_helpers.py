@@ -1,7 +1,6 @@
 from enum import Enum
 import os
-from message_database_dev import *
-from image_class_dev import *
+from protocol_database import *
 import time
 import sys
 
