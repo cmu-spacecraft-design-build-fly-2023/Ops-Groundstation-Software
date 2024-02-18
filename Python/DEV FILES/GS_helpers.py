@@ -1,6 +1,5 @@
 from enum import Enum
-from message_database_dev import *
-from image_class_dev import *
+from protocol_database import *
 import time
 import sys
 import os
@@ -9,8 +8,8 @@ import boto3
 
 AWS_S3_BUCKET_NAME = 'spacecraft-files'
 AWS_REGION = 'us-east-2'
-AWS_ACCESS_KEY = 'ASK D.J.'
-AWS_SECRET_KEY = 'ASK D.J.'
+# AWS_ACCESS_KEY = 'ASK D.J.!'
+# AWS_SECRET_KEY = 'ASK D.J.!'
 
 # Globals
 received_success = False
@@ -88,9 +87,7 @@ class GROUNDSTATION:
     '''
     def unpack_message(self,lora):
         # Unpack header information - Received header, sequence count, and message size
-        self.rx_message_ID = int.from_bytes(lora._last_payload.message[0:1],byteorder='big')
-        self.rx_message_sequence_count = int.from_bytes(lora._last_payload.message[1:3],byteorder='big')
-        self.rx_message_size = int.from_bytes(lora._last_payload.message[3:4],byteorder='big')
+        self.rx_message_ID, self.rx_message_sequence_count, self.rx_message_size = gs_unpack_header(lora)
 
         if self.rx_message_ID == SAT_HEARTBEAT:
             print("Heartbeat received!")
@@ -121,22 +118,7 @@ class GROUNDSTATION:
             lora - lora - Declaration of lora class
     '''
     def image_info_unpack(self,lora):
-        # Get image #1 information
-        self.sat_images.image_1_CMD_ID = int.from_bytes(lora._last_payload.message[4:5],byteorder='big')
-        self.sat_images.image_1_UID = int.from_bytes(lora._last_payload.message[5:6],byteorder='big')
-        self.sat_images.image_1_size = int.from_bytes(lora._last_payload.message[6:10],byteorder='big')
-        self.sat_images.image_1_message_count = int.from_bytes(lora._last_payload.message[10:12],byteorder='big')
-        # Get image #2 information
-        self.sat_images.image_2_CMD_ID = int.from_bytes(lora._last_payload.message[12:13],byteorder='big')
-        self.sat_images.image_2_UID = int.from_bytes(lora._last_payload.message[13:14],byteorder='big')
-        self.sat_images.image_2_size = int.from_bytes(lora._last_payload.message[14:18],byteorder='big')
-        self.sat_images.image_2_message_count = int.from_bytes(lora._last_payload.message[18:20],byteorder='big')
-        # Get image #3 information
-        self.sat_images.image_3_CMD_ID = int.from_bytes(lora._last_payload.message[20:21],byteorder='big')
-        self.sat_images.image_3_UID = int.from_bytes(lora._last_payload.message[21:22],byteorder='big')
-        self.sat_images.image_3_size = int.from_bytes(lora._last_payload.message[22:26],byteorder='big')
-        self.sat_images.image_3_message_count = int.from_bytes(lora._last_payload.message[26:28],byteorder='big')
-
+        self.sat_images = image_meta_info(lora)
         self.image_verification()
 
         # Diagnostic prints
