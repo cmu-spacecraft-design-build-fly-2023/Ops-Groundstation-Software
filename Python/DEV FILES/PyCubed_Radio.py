@@ -1,4 +1,4 @@
-from message_database_dev import *
+from protocol_database import *
 from PyCubed_Radio_helpers import *
 from pycubed import cubesat
 

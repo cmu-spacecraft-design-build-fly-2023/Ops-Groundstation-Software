@@ -1,6 +1,5 @@
 import os
-from message_database_dev import *
-from image_class_dev import *
+from protocol_database import *
 import time
 import sys
 from pycubed import cubesat
@@ -11,18 +10,16 @@ class SATELLITE:
         Description: Initialization of GROUNDSTATION class
     '''
     def __init__(self):
-        self.pack_three_images()
+        self.get_image_info()
         self.heartbeat_sent = False
+        self.image_deleted = True
+        self.last_image_id = 0x00
     
     '''
-        Name: pack_three_images
+        Name: get_image_info
         Description: This function takes in three images and stores them in a buffer
     '''
-    def pack_three_images(self):
-        # Initialize image arrays
-        self.image1_array = []
-        self.image2_array = []
-        self.image3_array = []
+    def get_image_info(self):
         # Setup image class
         self.sat_images = IMAGES()
         # Setup initial image UIDs
@@ -64,48 +61,59 @@ class SATELLITE:
         print("Image #3 size is", self.sat_images.image_3_size,"bytes")
         print("This image #3 requires",self.sat_images.image_3_message_count,"messages")
 
-        ## ---------- Image Buffer Storage ---------- ##
-        # Image #1 Buffer Store
-        bytes_remaining = self.sat_images.image_1_size
-        send_bytes = open('/sd/IMAGES/ohio.jpg','rb')
-        # Loop through image and store contents in an array
-        while (bytes_remaining > 0):
-            if (bytes_remaining >= 128):
-                self.image1_array.append(send_bytes.read(128))
-            else:
-                self.image1_array.append(send_bytes.read(bytes_remaining))
-                
-            bytes_remaining -= 128
-        # Close file when complete
-        send_bytes.close()
-
-        # Image #2 Buffer Store
-        bytes_remaining = self.sat_images.image_2_size
-        send_bytes = open('/sd/IMAGES/tokyo_small.jpg','rb')
-        # Loop through image and store contents in an array
-        while (bytes_remaining > 0):
-            if (bytes_remaining >= 128):
-                self.image2_array.append(send_bytes.read(128))
-            else:
-                self.image2_array.append(send_bytes.read(bytes_remaining))
-                
-            bytes_remaining -= 128
-        # Close file when complete
-        send_bytes.close()
-
-        # Image #3 Buffer Store
-        bytes_remaining = self.sat_images.image_3_size
-        send_bytes = open('/sd/IMAGES/oregon_small.jpg','rb')
-        # Loop through image and store contents in an array
-        while (bytes_remaining > 0):
-            if (bytes_remaining >= 128):
-                self.image3_array.append(send_bytes.read(128))
-            else:
-                self.image3_array.append(send_bytes.read(bytes_remaining))
-                
-            bytes_remaining -= 128
-        # Close file when complete
-        send_bytes.close()
+    '''
+        Name: pack_image
+        Description: Packs one image into an array
+    '''
+    def pack_image(self,IMG_CMD):
+        # Initialize image arrays
+        self.image_array = []
+        image_1_str = 'IMAGES/nyc_small.jpg'
+        image_2_str = 'IMAGES/tokyo_small.jpg'
+        image_3_str = 'IMAGES/oregon_small.jpg'
+        
+        if (IMG_CMD == SAT_IMG2_CMD):
+            # Image #2 Buffer Store
+            bytes_remaining = self.sat_images.image_2_size
+            send_bytes = open(image_2_str,'rb')
+            # Loop through image and store contents in an array
+            while (bytes_remaining > 0):
+                if (bytes_remaining >= 128):
+                    self.image_array.append(send_bytes.read(128))
+                else:
+                    self.image_array.append(send_bytes.read(bytes_remaining))
+                    
+                bytes_remaining -= 128
+            # Close file when complete
+            send_bytes.close()
+        elif (IMG_CMD == SAT_IMG3_CMD):
+            # Image #3 Buffer Store
+            bytes_remaining = self.sat_images.image_3_size
+            send_bytes = open(image_3_str,'rb')
+            # Loop through image and store contents in an array
+            while (bytes_remaining > 0):
+                if (bytes_remaining >= 128):
+                    self.image_array.append(send_bytes.read(128))
+                else:
+                    self.image_array.append(send_bytes.read(bytes_remaining))
+                    
+                bytes_remaining -= 128
+            # Close file when complete
+            send_bytes.close()
+        else:
+            # Image #1 Buffer Store
+            bytes_remaining = self.sat_images.image_1_size
+            send_bytes = open(image_1_str,'rb')
+            # Loop through image and store contents in an array
+            while (bytes_remaining > 0):
+                if (bytes_remaining >= 128):
+                    self.image_array.append(send_bytes.read(128))
+                else:
+                    self.image_array.append(send_bytes.read(bytes_remaining))
+                    
+                bytes_remaining -= 128
+            # Close file when complete
+            send_bytes.close()
 
     '''
         Name: received_message
@@ -170,36 +178,39 @@ class SATELLITE:
             tx_payload = self.pack_image_info()
             tx_message = tx_header + tx_payload
 
+         elif self.gs_req_message_ID == SAT_DEL_IMG1:
+            tx_header = bytes([SAT_DEL_IMG1,0x0,0x0,0x1])
+            tx_payload = bytes([0x1])
+            tx_message = tx_header + tx_payload
+            self.image_deleted = True
+        
+        elif self.gs_req_message_ID == SAT_DEL_IMG2:
+            tx_header = bytes([SAT_DEL_IMG2,0x0,0x0,0x1])
+            tx_payload = bytes([0x1])
+            tx_message = tx_header + tx_payload
+            self.image_deleted = True
+
+        elif self.gs_req_message_ID == SAT_DEL_IMG3:
+            tx_header = bytes([SAT_DEL_IMG3,0x0,0x0,0x1])
+            tx_payload = bytes([0x1])
+            tx_message = tx_header + tx_payload
+            self.image_deleted = True
+
         elif (self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD):
 
-            # Decide which image to send
-            if (self.gs_req_message_ID == SAT_IMG1_CMD):
-                # Header
-                tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + self.gs_req_seq_count.to_bytes(2,'big') \
-                            + len(self.image1_array[self.gs_req_seq_count]).to_bytes(1,'big'))
-                # Payload
-                tx_payload = self.image1_array[self.gs_req_seq_count]
-            elif (self.gs_req_message_ID == SAT_IMG2_CMD):
-                # Header
-                tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + self.gs_req_seq_count.to_bytes(2,'big') \
-                            + len(self.image2_array[self.gs_req_seq_count]).to_bytes(1,'big'))
-                # Payload
-                tx_payload = self.image2_array[self.gs_req_seq_count]
-            elif (self.gs_req_message_ID == SAT_IMG3_CMD):
-                # Header
-                tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + self.gs_req_seq_count.to_bytes(2,'big') \
-                            + len(self.image3_array[self.gs_req_seq_count]).to_bytes(1,'big'))
-                # Payload
-                tx_payload = self.image3_array[self.gs_req_seq_count]
-            else:
-                # Header
-                tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + self.gs_req_seq_count.to_bytes(2,'big') \
-                            + len(self.image1_array[self.gs_req_seq_count]).to_bytes(1,'big'))
-                # Payload
-                tx_payload = self.image1_array[self.gs_req_seq_count]
+           if (self.gs_req_message_ID != self.last_image_id) or (self.image_deleted):
+                self.pack_image(self.gs_req_message_ID)
+                self.image_deleted = False
 
+            # Header
+            tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + self.gs_req_seq_count.to_bytes(2,'big') \
+                        + len(self.image_array[self.gs_req_seq_count]).to_bytes(1,'big'))
+            # Payload
+            tx_payload = self.image_array[self.gs_req_seq_count]
             # Pack entire message
             tx_message = tx_header + tx_payload
+            # Set last image tracker
+            self.last_image_id = self.gs_req_message_ID
 
         else:
             tx_header = (self.gs_req_message_ID.to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big') + (0x0).to_bytes(1,'big'))
