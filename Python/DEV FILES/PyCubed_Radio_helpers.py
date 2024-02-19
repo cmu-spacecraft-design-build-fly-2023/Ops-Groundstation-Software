@@ -68,9 +68,9 @@ class SATELLITE:
     def pack_image(self,IMG_CMD):
         # Initialize image arrays
         self.image_array = []
-        image_1_str = 'IMAGES/nyc_small.jpg'
-        image_2_str = 'IMAGES/tokyo_small.jpg'
-        image_3_str = 'IMAGES/oregon_small.jpg'
+        image_1_str = '/sd/IMAGES/ohio.jpg'
+        image_2_str = '/sd/IMAGES/tokyo_small.jpg'
+        image_3_str = '/sd/IMAGES/oregon_small.jpg'
         
         if (IMG_CMD == SAT_IMG2_CMD):
             # Image #2 Buffer Store
@@ -134,9 +134,9 @@ class SATELLITE:
                     self.heartbeat_sent = False
                     break
             else:
-                print('Received (raw bytes): {0}'.format(my_packet))
-                rssi = cubesat.radio1.rssi
-                print('Received signal strength: {0} dBm'.format(rssi))
+                print(f'Received (raw bytes): {my_packet}')
+                rssi = cubesat.radio1.rssi(raw=True)
+                print(f'Received signal strength: {rssi} dBm')
                 self.unpack_message(my_packet)
                 received_success = True
 
@@ -178,7 +178,7 @@ class SATELLITE:
             tx_payload = self.pack_image_info()
             tx_message = tx_header + tx_payload
 
-         elif self.gs_req_message_ID == SAT_DEL_IMG1:
+        elif self.gs_req_message_ID == SAT_DEL_IMG1:
             tx_header = bytes([SAT_DEL_IMG1,0x0,0x0,0x1])
             tx_payload = bytes([0x1])
             tx_message = tx_header + tx_payload
@@ -198,7 +198,7 @@ class SATELLITE:
 
         elif (self.gs_req_message_ID == SAT_IMG1_CMD) or (self.gs_req_message_ID == SAT_IMG2_CMD) or (self.gs_req_message_ID == SAT_IMG3_CMD):
 
-           if (self.gs_req_message_ID != self.last_image_id) or (self.image_deleted):
+            if (self.gs_req_message_ID != self.last_image_id) or (self.image_deleted):
                 self.pack_image(self.gs_req_message_ID)
                 self.image_deleted = False
 
