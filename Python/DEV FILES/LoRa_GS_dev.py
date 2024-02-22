@@ -19,6 +19,8 @@ signal.signal(signal.SIGINT, lambda signum, frame: hard_exit(lora, signum, frame
 
 while True:
     GS.receive_message(lora)
+    time.sleep(0.1)
     GS.transmit_message(lora)
+    time.sleep(0.1)
 
 lora.close()
