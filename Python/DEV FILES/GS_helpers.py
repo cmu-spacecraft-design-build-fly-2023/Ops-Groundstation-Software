@@ -12,7 +12,7 @@ AWS_REGION = 'us-east-2'
 AWS_ACCESS_KEY = 'AKIA2UC3FSEOAUZUHPPP'
 AWS_SECRET_KEY = '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'
 # AWS_ACCESS_KEY = 'ASK D.J.!'
-# AWS_SECRET_KEY = 'ASK D.J.!'
+# AWS_SECRET_KEY = 'ASK D.J. before use!'
 
 # Globals
 received_success = False
