@@ -5,9 +5,12 @@ import sys
 import os
 import datetime
 import boto3
+import RPi.GPIO as GPIO
 
 AWS_S3_BUCKET_NAME = 'spacecraft-files'
 AWS_REGION = 'us-east-2'
+AWS_ACCESS_KEY = 'ASK D.J.'
+AWS_SECRET_KEY = 'ASK D.J.'
 # AWS_ACCESS_KEY = 'ASK D.J.!'
 # AWS_SECRET_KEY = 'ASK D.J. before use!'
 AWS_ACCESS_KEY = 'AKIA2UC3FSEOAUZUHPPP'
@@ -60,6 +63,16 @@ class GROUNDSTATION:
         self.rx_message_sequence_count = 0
         self.rx_message_size = 0
 
+        # Setup groundstation GPIO
+        self.rx_ctrl = 22
+        self.tx_ctrl = 23
+
+        # Set up the GPIO pin as an output pin
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.rx_ctrl, GPIO.OUT)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.tx_ctrl, GPIO.OUT)
+
     '''
         Name: received_message
         Description: This function waits for a message to be received from the LoRa module
@@ -67,6 +80,8 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def receive_message(self,lora):
+        # Pull GS RX pin HIGH!
+        GPIO.output(self.rx_ctrl, GPIO.HIGH)
         global received_success 
         received_success = False
         lora.set_mode_rx()
@@ -80,6 +95,8 @@ class GROUNDSTATION:
         # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
         # print('')
         self.unpack_message(lora)
+        # Turn GS RX pin LOW!
+        GPIO.output(self.rx_ctrl, GPIO.LOW)
 
     '''
         Name: unpack_message
@@ -98,8 +115,9 @@ class GROUNDSTATION:
             # If last command was an image, refetch last portion of image 
             # to make sure it was received correctly.
             if ((self.gs_cmd == self.sat_images.image_1_CMD_ID) or (self.gs_cmd == self.sat_images.image_2_CMD_ID) or (self.gs_cmd == self.sat_images.image_3_CMD_ID)):
-                self.sequence_counter -= 1
-                self.image_array.pop(self.sequence_counter)
+                if (self.sequence_counter > 0):
+                    self.sequence_counter -= 1
+                    self.image_array.pop(self.sequence_counter)
         elif self.rx_message_ID == SAT_IMAGES:
             self.image_info_unpack(lora)
         elif ((self.rx_message_ID == SAT_IMG1_CMD) or (self.rx_message_ID == SAT_IMG2_CMD) or (self.rx_message_ID == SAT_IMG3_CMD)):
@@ -199,6 +217,8 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def transmit_message(self,lora):
+        # Pull GS TX pin HIGH!
+        GPIO.output(self.tx_ctrl, GPIO.HIGH)
         time.sleep(0.15)
 
         if self.num_commands_sent < self.cmd_queue_size:
@@ -223,6 +243,9 @@ class GROUNDSTATION:
             pass
 
         self.last_gs_cmd = self.gs_cmd
+
+        # Set GS TX pin LOW!
+        GPIO.output(self.tx_ctrl, GPIO.LOW)
 
     '''
         Name: pack_telemetry_command
