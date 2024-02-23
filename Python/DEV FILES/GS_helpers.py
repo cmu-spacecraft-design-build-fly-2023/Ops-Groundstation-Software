@@ -10,6 +10,8 @@ AWS_S3_BUCKET_NAME = 'spacecraft-files'
 AWS_REGION = 'us-east-2'
 # AWS_ACCESS_KEY = 'ASK D.J.!'
 # AWS_SECRET_KEY = 'ASK D.J. before use!'
+AWS_ACCESS_KEY = 'AKIA2UC3FSEOAUZUHPPP'
+AWS_SECRET_KEY = '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'
 
 # Globals
 received_success = False
