@@ -9,12 +9,8 @@ import RPi.GPIO as GPIO
 
 AWS_S3_BUCKET_NAME = 'spacecraft-files'
 AWS_REGION = 'us-east-2'
-AWS_ACCESS_KEY = 'ASK D.J.'
-AWS_SECRET_KEY = 'ASK D.J.'
-# AWS_ACCESS_KEY = 'ASK D.J.!'
-# AWS_SECRET_KEY = 'ASK D.J. before use!'
-AWS_ACCESS_KEY = 'AKIA2UC3FSEOAUZUHPPP'
-AWS_SECRET_KEY = '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'
+# AWS_ACCESS_KEY = 'ASK D.J.'
+# AWS_SECRET_KEY = 'ASK D.J.'
 
 # Globals
 received_success = False
@@ -43,6 +39,8 @@ class GROUNDSTATION:
         self.new_session = False
         # Track the number of commands sent before an image is requested
         self.num_commands_sent = 0
+        # CRC Error Count
+        self.crc_error_count = 0
         # List of commands to send before image request
         self.cmd_queue = [SAT_BATT_INFO, SAT_GPS_INFO, SAT_IMU_INFO]
         self.cmd_queue_size = len(self.cmd_queue)
@@ -105,6 +103,10 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def unpack_message(self,lora):
+        if lora.enable_crc and lora.crc_error():
+            self.crc_error_count += 1
+            print('crc error.')
+
         # Unpack header information - Received header, sequence count, and message size
         self.rx_message_ID, self.rx_message_sequence_count, self.rx_message_size = gs_unpack_header(lora)
 
@@ -229,7 +231,7 @@ class GROUNDSTATION:
         # Send a message to the satellite device with address 2
         # Retry sending the message twice if we don't get an acknowledgment from the recipient
     
-        status = lora.send(lora_tx_message, 2)
+        status = lora.send(lora_tx_message, 255)
 
         # Check for groundstation acknowledgement 
         if status is True:
