@@ -12,6 +12,9 @@ AWS_REGION = 'us-east-2'
 # AWS_ACCESS_KEY = 'ASK D.J.'
 # AWS_SECRET_KEY = 'ASK D.J.'
 
+AWS_ACCESS_KEY = 'AKIA2UC3FSEOJ3TU4R5U'
+AWS_SECRET_KEY = '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'
+
 # Globals
 received_success = False
 
@@ -344,7 +347,6 @@ class GROUNDSTATION:
             self.gs_cmd = self.sat_images.image_1_CMD_ID
 
     def close_log(self):
-        GPIO.cleanup()
         self.log.close()
 
         response = self.s3_client.upload_file(self.log_name, AWS_S3_BUCKET_NAME, self.log_name)

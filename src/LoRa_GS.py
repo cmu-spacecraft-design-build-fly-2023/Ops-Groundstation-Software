@@ -1,4 +1,4 @@
-from raspi_lora import LoRa, ModemConfig
+from argus_lora import LoRa, ModemConfig
 from protocol_database import *
 from GS_helpers import *
 import time
