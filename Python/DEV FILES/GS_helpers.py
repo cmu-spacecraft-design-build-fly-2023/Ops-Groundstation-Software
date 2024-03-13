@@ -81,7 +81,7 @@ class GROUNDSTATION:
         # Create image name
         self.log_name = f"GS_Logs_{formatted_time}.txt"
 
-        self.log = open(filename,'wb')
+        self.log = open(self.log_name,'wb')
 
     '''
         Name: received_message
@@ -119,8 +119,10 @@ class GROUNDSTATION:
             self.crc_error_count += 1
             print('crc error.')
 
-        header_info = f"Header To: {lora.header_to}, Header From: {lora.header_from}, Header ID: {lora.header_id}, Header Flags: {lora.header_flags}, RSSI: {lora.rssi}, SNR: {lora.snr}\n"
-        payload = f"Payload: {lora.message}\n"
+        header_info = f"Header To: {lora._last_payload.header_to}, Header From: {lora._last_payload.header_from}, Header ID: {lora._last_payload.header_id}, Header Flags: {lora._last_payload.header_flags}, RSSI: {lora._last_payload.rssi}, SNR: {lora._last_payload.snr}\n"
+        header_info = header_info.encode('utf-8')
+        payload = f"Payload: {lora._last_payload.message}\n"
+        payload = payload.encode('utf-8')
         self.log.write(header_info)
         self.log.write(payload)
 
@@ -342,6 +344,7 @@ class GROUNDSTATION:
             self.gs_cmd = self.sat_images.image_1_CMD_ID
 
     def close_log(self):
+        GPIO.cleanup()
         self.log.close()
 
         response = self.s3_client.upload_file(self.log_name, AWS_S3_BUCKET_NAME, self.log_name)
@@ -365,7 +368,7 @@ def on_recv(payload):
     Inputs: 
         lora - Declaration of lora class
 '''
-def hard_exit(lora, signum, frame):
-    GROUNDSTATION().close_log()
+def hard_exit(lora, GS, signum, frame):
+    GS.close_log()
     lora.close()
     sys.exit(0)

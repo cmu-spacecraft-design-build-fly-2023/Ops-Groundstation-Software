@@ -15,7 +15,7 @@ lora = LoRa(0, 19, 25, modem_config=ModemConfig.Bw125Cr45Sf128, acks=False, freq
 lora.on_recv = on_recv
 
 # Setup interrupt
-signal.signal(signal.SIGINT, lambda signum, frame: hard_exit(lora, signum, frame))
+signal.signal(signal.SIGINT, lambda signum, frame: hard_exit(lora, GS, signum, frame))
 
 while True:
     GS.receive_message(lora)
