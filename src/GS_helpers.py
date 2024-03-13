@@ -9,10 +9,11 @@ import RPi.GPIO as GPIO
 
 AWS_S3_BUCKET_NAME = 'spacecraft-files'
 AWS_REGION = 'us-east-2'
-AWS_ACCESS_KEY = 'ASK D.J.'
-AWS_SECRET_KEY = 'ASK D.J.'
-# AWS_ACCESS_KEY = 'ASK D.J.!'
-# AWS_SECRET_KEY = 'ASK D.J. before use!'
+# AWS_ACCESS_KEY = 'ASK D.J.'
+# AWS_SECRET_KEY = 'ASK D.J.'
+
+AWS_ACCESS_KEY = 'AKIA2UC3FSEOJ3TU4R5U'
+AWS_SECRET_KEY = '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'
 
 # Globals
 received_success = False
@@ -41,6 +42,8 @@ class GROUNDSTATION:
         self.new_session = False
         # Track the number of commands sent before an image is requested
         self.num_commands_sent = 0
+        # CRC Error Count
+        self.crc_error_count = 0
         # List of commands to send before image request
         self.cmd_queue = [SAT_BATT_INFO, SAT_GPS_INFO, SAT_IMU_INFO]
         self.cmd_queue_size = len(self.cmd_queue)
@@ -70,6 +73,18 @@ class GROUNDSTATION:
         GPIO.setup(self.rx_ctrl, GPIO.OUT)
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.tx_ctrl, GPIO.OUT)
+
+        # Logging Information
+        # Get the current time
+        current_time = datetime.datetime.now()
+
+        # Format the current time
+        formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S")
+
+        # Create image name
+        self.log_name = f"GS_Logs_{formatted_time}.txt"
+
+        self.log = open(self.log_name,'wb')
 
     '''
         Name: received_message
@@ -103,6 +118,17 @@ class GROUNDSTATION:
             lora - Declaration of lora class
     '''
     def unpack_message(self,lora):
+        if lora.enable_crc and lora.crc_error():
+            self.crc_error_count += 1
+            print('crc error.')
+
+        header_info = f"Header To: {lora._last_payload.header_to}, Header From: {lora._last_payload.header_from}, Header ID: {lora._last_payload.header_id}, Header Flags: {lora._last_payload.header_flags}, RSSI: {lora._last_payload.rssi}, SNR: {lora._last_payload.snr}\n"
+        header_info = header_info.encode('utf-8')
+        payload = f"Payload: {lora._last_payload.message}\n"
+        payload = payload.encode('utf-8')
+        self.log.write(header_info)
+        self.log.write(payload)
+
         # Unpack header information - Received header, sequence count, and message size
         self.rx_message_ID, self.rx_message_sequence_count, self.rx_message_size = gs_unpack_header(lora)
 
@@ -227,7 +253,7 @@ class GROUNDSTATION:
         # Send a message to the satellite device with address 2
         # Retry sending the message twice if we don't get an acknowledgment from the recipient
     
-        status = lora.send(lora_tx_message, 2)
+        status = lora.send(lora_tx_message, 255)
 
         # Check for groundstation acknowledgement 
         if status is True:
@@ -320,6 +346,14 @@ class GROUNDSTATION:
             self.target_sequence_count = self.sat_images.image_1_message_count       
             self.gs_cmd = self.sat_images.image_1_CMD_ID
 
+    def close_log(self):
+        self.log.close()
+
+        response = self.s3_client.upload_file(self.log_name, AWS_S3_BUCKET_NAME, self.log_name)
+        print(f'upload_log_to_aws response: {response}')
+        time.sleep(1)
+        os.remove(self.log_name)
+
 '''
     Name: on_recv
     Description: Callback function that runs when a message is received.
@@ -336,6 +370,7 @@ def on_recv(payload):
     Inputs: 
         lora - Declaration of lora class
 '''
-def hard_exit(lora, signum, frame):
+def hard_exit(lora, GS, signum, frame):
+    GS.close_log()
     lora.close()
     sys.exit(0)
