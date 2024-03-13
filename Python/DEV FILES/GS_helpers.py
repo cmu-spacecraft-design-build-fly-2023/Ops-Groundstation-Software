@@ -71,6 +71,18 @@ class GROUNDSTATION:
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.tx_ctrl, GPIO.OUT)
 
+        # Logging Information
+        # Get the current time
+        current_time = datetime.datetime.now()
+
+        # Format the current time
+        formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S")
+
+        # Create image name
+        self.log_name = f"GS_Logs_{formatted_time}.txt"
+
+        self.log = open(filename,'wb')
+
     '''
         Name: received_message
         Description: This function waits for a message to be received from the LoRa module
@@ -106,6 +118,11 @@ class GROUNDSTATION:
         if lora.enable_crc and lora.crc_error():
             self.crc_error_count += 1
             print('crc error.')
+
+        header_info = f"Header To: {lora.header_to}, Header From: {lora.header_from}, Header ID: {lora.header_id}, Header Flags: {lora.header_flags}, RSSI: {lora.rssi}, SNR: {lora.snr}\n"
+        payload = f"Payload: {lora.message}\n"
+        self.log.write(header_info)
+        self.log.write(payload)
 
         # Unpack header information - Received header, sequence count, and message size
         self.rx_message_ID, self.rx_message_sequence_count, self.rx_message_size = gs_unpack_header(lora)
@@ -324,6 +341,14 @@ class GROUNDSTATION:
             self.target_sequence_count = self.sat_images.image_1_message_count       
             self.gs_cmd = self.sat_images.image_1_CMD_ID
 
+    def close_log(self):
+        self.log.close()
+
+        response = self.s3_client.upload_file(self.log_name, AWS_S3_BUCKET_NAME, self.log_name)
+        print(f'upload_log_to_aws response: {response}')
+        time.sleep(1)
+        os.remove(self.log_name)
+
 '''
     Name: on_recv
     Description: Callback function that runs when a message is received.
@@ -341,5 +366,6 @@ def on_recv(payload):
         lora - Declaration of lora class
 '''
 def hard_exit(lora, signum, frame):
+    GROUNDSTATION().close_log()
     lora.close()
     sys.exit(0)

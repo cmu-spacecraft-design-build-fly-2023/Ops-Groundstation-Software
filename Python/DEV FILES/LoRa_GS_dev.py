@@ -23,4 +23,5 @@ while True:
     GS.transmit_message(lora)
     time.sleep(0.1)
 
+GS.close_log()
 lora.close()
