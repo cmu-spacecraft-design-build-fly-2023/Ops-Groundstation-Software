@@ -12,9 +12,6 @@ AWS_REGION = 'us-east-2'
 # AWS_ACCESS_KEY = 'ASK D.J.'
 # AWS_SECRET_KEY = 'ASK D.J.'
 
-AWS_ACCESS_KEY = 'AKIA2UC3FSEOJ3TU4R5U'
-AWS_SECRET_KEY = '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'
-
 # Globals
 received_success = False
 
@@ -122,10 +119,17 @@ class GROUNDSTATION:
             self.crc_error_count += 1
             print('crc error.')
 
+        # Get the current time
+        current_time = datetime.datetime.now()
+        # Format the current time
+        formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S\n")
+        formatted_time = formatted_time.encode('utf-8')
+
         header_info = f"Header To: {lora._last_payload.header_to}, Header From: {lora._last_payload.header_from}, Header ID: {lora._last_payload.header_id}, Header Flags: {lora._last_payload.header_flags}, RSSI: {lora._last_payload.rssi}, SNR: {lora._last_payload.snr}\n"
         header_info = header_info.encode('utf-8')
-        payload = f"Payload: {lora._last_payload.message}\n"
+        payload = f"Payload: {lora._last_payload.message}\n\n"
         payload = payload.encode('utf-8')
+        self.log.write(formatted_time)
         self.log.write(header_info)
         self.log.write(payload)
 
