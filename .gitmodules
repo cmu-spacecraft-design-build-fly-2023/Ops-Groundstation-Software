@@ -1,0 +1,3 @@
+[submodule "PY4_gs"]
+	path = PY4_gs
+	url = https://github.com/maholli/PY4_gs.git
