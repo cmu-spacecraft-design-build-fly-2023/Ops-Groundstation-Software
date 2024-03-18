@@ -60,6 +60,8 @@ class GROUNDSTATION:
         self.rx_message_ID = 0x0
         self.rx_message_sequence_count = 0
         self.rx_message_size = 0
+        # Receive modulus
+        self.receive_mod = 10
 
         # Setup groundstation GPIO
         self.rx_ctrl = 22
@@ -93,18 +95,22 @@ class GROUNDSTATION:
         # Pull GS RX pin HIGH!
         GPIO.output(self.rx_ctrl, GPIO.HIGH)
         global received_success 
-        received_success = False
-        lora.set_mode_rx()
+        long_transmission = True
+        while long_transmission:
+            received_success = False
+            lora.set_mode_rx()
 
-        while received_success == False:
-            time.sleep(0.1)
+            while received_success == False:
+                time.sleep(0.1)
 
-        # print(lora._last_payload.message) 
-        # print("From:", payload.header_from)
-        # print("Received:", payload.message)
-        # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
-        # print('')
-        self.unpack_message(lora)
+            # print(lora._last_payload.message) 
+            # print("From:", payload.header_from)
+            # print("Received:", payload.message)
+            # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
+            # print('')
+            self.unpack_message(lora)
+            long_transmission = self.hold_receive_mode()
+
         # Turn GS RX pin LOW!
         GPIO.output(self.rx_ctrl, GPIO.LOW)
 
@@ -358,6 +364,25 @@ class GROUNDSTATION:
         time.sleep(1)
         os.remove(self.log_name)
 
+    '''
+        Name: hold_receive_mode
+        Description: Holds the Ground Station in receive mode for modulus messages 
+                     as long as the Satellite keeps sending image packets. 
+    '''
+    def hold_receive_mode(self):
+        return_status = False
+        if ((self.rx_message_ID == SAT_IMG1_CMD) or (self.rx_message_ID == SAT_IMG2_CMD) or (self.rx_message_ID == SAT_IMG3_CMD)):
+            if (self.rx_message_sequence_count == 0):
+                return_status = True
+            elif (((self.rx_message_sequence_count % self.receive_mod) > 0) and (self.sequence_counter < self.target_sequence_count)):
+                return_status = True
+            else:
+                return_status = False
+        else:
+            return_status = False
+        
+        return return_status
+            
 '''
     Name: on_recv
     Description: Callback function that runs when a message is received.
