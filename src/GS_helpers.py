@@ -95,8 +95,8 @@ class GROUNDSTATION:
         # Pull GS RX pin HIGH!
         GPIO.output(self.rx_ctrl, GPIO.HIGH)
         global received_success 
-        long_transmission = True
-        while long_transmission:
+        receive_multiple = True
+        while receive_multiple:
             received_success = False
             lora.set_mode_rx()
 
@@ -109,7 +109,7 @@ class GROUNDSTATION:
             # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
             # print('')
             self.unpack_message(lora)
-            long_transmission = self.hold_receive_mode()
+            receive_multiple = self.hold_receive_mode()
 
         # Turn GS RX pin LOW!
         GPIO.output(self.rx_ctrl, GPIO.LOW)
@@ -372,9 +372,8 @@ class GROUNDSTATION:
     def hold_receive_mode(self):
         return_status = False
         if ((self.rx_message_ID == SAT_IMG1_CMD) or (self.rx_message_ID == SAT_IMG2_CMD) or (self.rx_message_ID == SAT_IMG3_CMD)):
-            if (self.rx_message_sequence_count == 0):
-                return_status = True
-            elif (((self.rx_message_sequence_count % self.receive_mod) > 0) and (self.sequence_counter < self.target_sequence_count)):
+            if ((((self.rx_message_sequence_count % self.receive_mod) > 0) and (self.rx_message_sequence_count == (self.target_sequence_count - 1))) or \
+                (self.rx_message_sequence_count == 0)):
                 return_status = True
             else:
                 return_status = False
