@@ -372,7 +372,7 @@ class GROUNDSTATION:
     def hold_receive_mode(self):
         return_status = False
         if ((self.rx_message_ID == SAT_IMG1_CMD) or (self.rx_message_ID == SAT_IMG2_CMD) or (self.rx_message_ID == SAT_IMG3_CMD)):
-            if ((((self.rx_message_sequence_count % self.receive_mod) > 0) and (self.rx_message_sequence_count == (self.target_sequence_count - 1))) or \
+            if ((((self.rx_message_sequence_count % self.receive_mod) > 0) and (self.rx_message_sequence_count < (self.target_sequence_count - 1))) or \
                 (self.rx_message_sequence_count == 0)):
                 return_status = True
             else:
