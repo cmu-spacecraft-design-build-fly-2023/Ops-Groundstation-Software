@@ -60,6 +60,7 @@ class GROUNDSTATION:
         self.rx_message_ID = 0x0
         self.rx_message_sequence_count = 0
         self.rx_message_size = 0
+        self.rx_req_ack = 0
 
         # Setup groundstation GPIO
         self.rx_ctrl = 22
@@ -93,18 +94,22 @@ class GROUNDSTATION:
         # Pull GS RX pin HIGH!
         GPIO.output(self.rx_ctrl, GPIO.HIGH)
         global received_success 
-        received_success = False
-        lora.set_mode_rx()
+        receive_multiple = 0
+        while (receive_multiple == 0):
+            received_success = False
+            lora.set_mode_rx()
 
-        while received_success == False:
-            time.sleep(0.1)
+            while received_success == False:
+                time.sleep(0.1)
 
-        # print(lora._last_payload.message) 
-        # print("From:", payload.header_from)
-        # print("Received:", payload.message)
-        # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
-        # print('')
-        self.unpack_message(lora)
+            # print(lora._last_payload.message) 
+            # print("From:", payload.header_from)
+            # print("Received:", payload.message)
+            # print("RSSI: {}; SNR: {}".format(payload.rssi, payload.snr))
+            # print('')
+            self.unpack_message(lora)
+            receive_multiple = self.rx_req_ack
+
         # Turn GS RX pin LOW!
         GPIO.output(self.rx_ctrl, GPIO.LOW)
 
@@ -134,7 +139,7 @@ class GROUNDSTATION:
         self.log.write(payload)
 
         # Unpack header information - Received header, sequence count, and message size
-        self.rx_message_ID, self.rx_message_sequence_count, self.rx_message_size = gs_unpack_header(lora)
+        self.rx_req_ack, self.rx_message_ID, self.rx_message_sequence_count, self.rx_message_size = gs_unpack_header(lora)
 
         if self.rx_message_ID == SAT_HEARTBEAT:
             print("Heartbeat received!")
@@ -149,9 +154,10 @@ class GROUNDSTATION:
         elif self.rx_message_ID == SAT_IMAGES:
             self.image_info_unpack(lora)
         elif ((self.rx_message_ID == SAT_IMG1_CMD) or (self.rx_message_ID == SAT_IMG2_CMD) or (self.rx_message_ID == SAT_IMG3_CMD)):
+            print(f'Image #{self.rx_message_sequence_count} received!')
             self.image_unpack(lora)
         else:
-            print("Telemetry or image received!")
+            print("Telemetry received!")
             print("Lora header_to:",lora._last_payload.header_to)
             print("Lora header_from:",lora._last_payload.header_from)
             print("Lora header_id:",lora._last_payload.header_id)
@@ -234,7 +240,6 @@ class GROUNDSTATION:
 
             response = self.s3_client.upload_file(filename, AWS_S3_BUCKET_NAME, filename)
             print(f'upload_log_to_aws response: {response}')
-            time.sleep(1)
             self.image_array.clear()
             os.remove(filename)
 
@@ -286,7 +291,7 @@ class GROUNDSTATION:
 
         # Payload to transmit
         # Simulated for now!
-        lora_tx_header = bytes([GS_ACK, 0x00, 0x01, 0x4])
+        lora_tx_header = bytes([REQ_ACK_NUM | GS_ACK, 0x00, 0x01, 0x4])
         lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + (0x0).to_bytes(2,'big'))
         lora_tx_message = lora_tx_header + lora_tx_payload
 
@@ -302,14 +307,14 @@ class GROUNDSTATION:
 
         if ((self.gs_cmd == SAT_DEL_IMG1) or (self.gs_cmd == SAT_DEL_IMG2) or (self.gs_cmd == SAT_DEL_IMG3) or (self.new_session == True)):
             self.gs_cmd = SAT_IMAGES
-            lora_tx_header = bytes([GS_ACK, 0x00, 0x01, 0x4])
+            lora_tx_header = bytes([REQ_ACK_NUM | GS_ACK, 0x00, 0x01, 0x4])
             lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + (0x0).to_bytes(2,'big'))
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Session is no longer "new" after telemetry has been retrieved
             self.new_session = False
         elif ((self.sequence_counter >= self.target_sequence_count) and (self.target_sequence_count != 0)):
             self.gs_cmd = SAT_DEL_IMG1
-            lora_tx_header = bytes([GS_ACK, 0x00, 0x01, 0x4])
+            lora_tx_header = bytes([REQ_ACK_NUM | GS_ACK, 0x00, 0x01, 0x4])
             lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + (0x0).to_bytes(2,'big'))
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Reset sequence counter and get new image
@@ -320,7 +325,7 @@ class GROUNDSTATION:
                 self.image_num = IMAGE_DEFS.IMAGE_1.value
         else:
             self.pick_image()
-            lora_tx_header = bytes([GS_ACK, 0x00, 0x00, 0x4])
+            lora_tx_header = bytes([REQ_ACK_NUM | GS_ACK, 0x00, 0x00, 0x4])
             lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + self.sequence_counter.to_bytes(2,'big'))
             lora_tx_message = lora_tx_header + lora_tx_payload
 
