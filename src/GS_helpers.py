@@ -9,8 +9,6 @@ import RPi.GPIO as GPIO
 
 AWS_S3_BUCKET_NAME = 'spacecraft-files'
 AWS_REGION = 'us-east-2'
-# AWS_ACCESS_KEY = 'ASK D.J.'
-# AWS_SECRET_KEY = 'ASK D.J.'
 
 # Globals
 received_success = False
@@ -49,8 +47,6 @@ class GROUNDSTATION:
         # Sequence counter for images
         self.sequence_counter = 0
         # References to the image we are requesting
-        self.image_num = IMAGE_DEFS.IMAGE_1.value
-        self.target_image_CMD_ID = 0
         self.target_image_UID = 0
         self.target_sequence_count = 0
         # Image Info class
@@ -141,19 +137,20 @@ class GROUNDSTATION:
         # Unpack header information - Received header, sequence count, and message size
         self.rx_req_ack, self.rx_message_ID, self.rx_message_sequence_count, self.rx_message_size = gs_unpack_header(lora)
 
-        if self.rx_message_ID == SAT_HEARTBEAT:
+        if ((self.rx_message_ID == SAT_HEARTBEAT_BATT) or (self.rx_message_ID == SAT_HEARTBEAT_SUN) or \
+            (self.rx_message_ID == SAT_HEARTBEAT_IMU) or (self.rx_message_ID == SAT_HEARTBEAT_GPS)):
             print("Heartbeat received!")
             self.num_commands_sent = 0
             self.new_session = True
             # If last command was an image, refetch last portion of image 
             # to make sure it was received correctly.
-            if ((self.gs_cmd == self.sat_images.image_1_CMD_ID) or (self.gs_cmd == self.sat_images.image_2_CMD_ID) or (self.gs_cmd == self.sat_images.image_3_CMD_ID)):
+            if (self.gs_cmd == SAT_IMG1_CMD):
                 if (self.sequence_counter > 0):
                     self.sequence_counter -= 1
                     self.image_array.pop(self.sequence_counter)
         elif self.rx_message_ID == SAT_IMAGES:
             self.image_info_unpack(lora)
-        elif ((self.rx_message_ID == SAT_IMG1_CMD) or (self.rx_message_ID == SAT_IMG2_CMD) or (self.rx_message_ID == SAT_IMG3_CMD)):
+        elif (self.rx_message_ID == SAT_IMG1_CMD):
             print(f'Image #{self.rx_message_sequence_count} received!')
             self.image_unpack(lora)
         else:
@@ -179,20 +176,9 @@ class GROUNDSTATION:
         print("Image info received!")
         print("Message received header:",list(lora._last_payload.message[0:4]))
 
-        print("Image 1 CMD ID:",self.sat_images.image_1_CMD_ID)
-        print("Image 1 UID:",self.sat_images.image_1_UID)
-        print("Image 1 size:",self.sat_images.image_1_size,"KB")
-        print("Image 1 message count:",self.sat_images.image_1_message_count)
-
-        print("Image 2 CMD ID:",self.sat_images.image_2_CMD_ID)
-        print("Image 2 UID:",self.sat_images.image_2_UID)
-        print("Image 2 size:",self.sat_images.image_2_size,"KB")
-        print("Image 2 message count:",self.sat_images.image_2_message_count)
-
-        print("Image 3 CMD ID:",self.sat_images.image_3_CMD_ID)
-        print("Image 3 UID:",self.sat_images.image_3_UID)
-        print("Image 3 size:",self.sat_images.image_3_size,"KB")
-        print("Image 3 message count:",self.sat_images.image_3_message_count)
+        print("Image UID:",self.sat_images.image_UID)
+        print("Image size:",self.sat_images.image_size,"KB")
+        print("Image message count:",self.sat_images.image_message_count)
 
     '''
         Name: image_verification
@@ -200,13 +186,7 @@ class GROUNDSTATION:
                      Will reset the sequence counter if new image was loaded.
     '''
     def image_verification(self):
-        if ((self.image_num == IMAGE_DEFS.IMAGE_2.value) and (self.target_image_UID != self.sat_images.image_2_UID)):
-            self.sequence_counter = 0
-            self.image_array.clear()
-        elif ((self.image_num == IMAGE_DEFS.IMAGE_3.value) and (self.target_image_UID != self.sat_images.image_3_UID)):
-            self.sequence_counter = 0
-            self.image_array.clear()
-        elif ((self.image_num == IMAGE_DEFS.IMAGE_1.value) and (self.target_image_UID != self.sat_images.image_1_UID)):
+        if (self.target_image_UID != self.sat_images.image_UID):
             self.sequence_counter = 0
             self.image_array.clear()
 
@@ -305,7 +285,7 @@ class GROUNDSTATION:
         # Payload to transmit
         # Simulated for now!
 
-        if ((self.gs_cmd == SAT_DEL_IMG1) or (self.gs_cmd == SAT_DEL_IMG2) or (self.gs_cmd == SAT_DEL_IMG3) or (self.new_session == True)):
+        if ((self.gs_cmd == SAT_DEL_IMG1) or (self.new_session == True)):
             self.gs_cmd = SAT_IMAGES
             lora_tx_header = bytes([REQ_ACK_NUM | GS_ACK, 0x00, 0x01, 0x4])
             lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + (0x0).to_bytes(2,'big'))
@@ -319,41 +299,16 @@ class GROUNDSTATION:
             lora_tx_message = lora_tx_header + lora_tx_payload
             # Reset sequence counter and get new image
             self.sequence_counter = 0
-            if (self.image_num < IMAGE_DEFS.IMAGE_3.value):
-                self.image_num += 1
-            else:
-                self.image_num = IMAGE_DEFS.IMAGE_1.value
         else:
-            self.pick_image()
+            self.target_image_UID = self.sat_images.image_UID
+            self.target_sequence_count = self.sat_images.image_message_count       
+            self.gs_cmd = SAT_IMG1_CMD
+
             lora_tx_header = bytes([REQ_ACK_NUM | GS_ACK, 0x00, 0x00, 0x4])
             lora_tx_payload = (self.rx_message_ID.to_bytes(1,'big') + self.gs_cmd.to_bytes(1,'big') + self.sequence_counter.to_bytes(2,'big'))
             lora_tx_message = lora_tx_header + lora_tx_payload
 
         return lora_tx_message
-
-    '''
-        Name: pick_image
-        Description: Picks what image to send based on the current image number.
-    '''
-    def pick_image(self):
-        # Fetch image #2
-        if self.image_num == IMAGE_DEFS.IMAGE_2.value:
-            self.target_image_CMD_ID = self.sat_images.image_2_CMD_ID
-            self.target_image_UID = self.sat_images.image_2_UID
-            self.target_sequence_count = self.sat_images.image_2_message_count       
-            self.gs_cmd = self.sat_images.image_2_CMD_ID
-        # Fetch image #3
-        elif self.image_num == IMAGE_DEFS.IMAGE_3.value:
-            self.target_image_CMD_ID = self.sat_images.image_3_CMD_ID
-            self.target_image_UID = self.sat_images.image_3_UID
-            self.target_sequence_count = self.sat_images.image_3_message_count       
-            self.gs_cmd = self.sat_images.image_3_CMD_ID
-        # Fetch image #1
-        else:
-            self.target_image_CMD_ID = self.sat_images.image_1_CMD_ID
-            self.target_image_UID = self.sat_images.image_1_UID
-            self.target_sequence_count = self.sat_images.image_1_message_count       
-            self.gs_cmd = self.sat_images.image_1_CMD_ID
 
     def close_log(self):
         self.log.close()

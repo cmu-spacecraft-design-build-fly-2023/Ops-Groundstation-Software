@@ -41,4 +41,4 @@ while (1):
 
     print(f'Sent test message #{i}!')
     i = i + 1
-    time.sleep(10)
+    time.sleep(0.5)
