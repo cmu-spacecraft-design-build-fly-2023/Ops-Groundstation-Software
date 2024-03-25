@@ -229,7 +229,7 @@ class RFM9x:
         code_rate=5,
         high_power=True,
         baudrate=5000000,
-        max_output=False,
+        max_output=True,
         hot_start=False
     ):
         self.hot_start=hot_start

@@ -14,7 +14,10 @@ Authors: Akshat Sahay, DJ Morvay
 """
 
 # Message ID definitions 
-SAT_HEARTBEAT = 0x01
+SAT_HEARTBEAT_BATT  = 0x00
+SAT_HEARTBEAT_SUN   = 0x01
+SAT_HEARTBEAT_IMU   = 0x02
+SAT_HEARTBEAT_GPS   = 0x03
 
 GS_ACK  = 0x08
 SAT_ACK = 0x09
