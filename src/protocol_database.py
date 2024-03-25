@@ -41,20 +41,9 @@ REQ_ACK_NUM = 0x80
 class IMAGES:
     def __init__(self):
         # Image #1 declarations
-        self.image_1_CMD_ID = 0x50
-        self.image_1_UID = 0x0
-        self.image_1_size = 0
-        self.image_1_message_count = 0
-        # Image #2 declarations
-        self.image_2_CMD_ID = 0x51
-        self.image_2_UID = 0x0
-        self.image_2_size = 0
-        self.image_2_message_count = 0
-        # Image #3 declarations
-        self.image_3_CMD_ID = 0x52
-        self.image_3_UID = 0x0
-        self.image_3_size = 0
-        self.image_3_message_count = 0
+        self.image_UID = 0x0
+        self.image_size = 0
+        self.image_message_count = 0
 
 # Function definitions 
 def gs_unpack_header(lora):
@@ -85,25 +74,14 @@ def image_meta_info(lora):
         Return 
             stored_images (class)
     """
-    stored_images = IMAGES()
+    stored_image = IMAGES()
 
-    # Get image #1 information
-    stored_images.image_1_CMD_ID = int.from_bytes(lora._last_payload.message[4:5],byteorder='big')
-    stored_images.image_1_UID = int.from_bytes(lora._last_payload.message[5:6],byteorder='big')
-    stored_images.image_1_size = int.from_bytes(lora._last_payload.message[6:10],byteorder='big')
-    stored_images.image_1_message_count = int.from_bytes(lora._last_payload.message[10:12],byteorder='big')
-    # Get image #2 information
-    stored_images.image_2_CMD_ID = int.from_bytes(lora._last_payload.message[12:13],byteorder='big')
-    stored_images.image_2_UID = int.from_bytes(lora._last_payload.message[13:14],byteorder='big')
-    stored_images.image_2_size = int.from_bytes(lora._last_payload.message[14:18],byteorder='big')
-    stored_images.image_2_message_count = int.from_bytes(lora._last_payload.message[18:20],byteorder='big')
-    # Get image #3 information
-    stored_images.image_3_CMD_ID = int.from_bytes(lora._last_payload.message[20:21],byteorder='big')
-    stored_images.image_3_UID = int.from_bytes(lora._last_payload.message[21:22],byteorder='big')
-    stored_images.image_3_size = int.from_bytes(lora._last_payload.message[22:26],byteorder='big')
-    stored_images.image_3_message_count = int.from_bytes(lora._last_payload.message[26:28],byteorder='big')
+    # Get image information
+    stored_image.image_UID = int.from_bytes(lora._last_payload.message[4:5],byteorder='big')
+    stored_image.image_size = int.from_bytes(lora._last_payload.message[5:9],byteorder='big')
+    stored_image.image_message_count = int.from_bytes(lora._last_payload.message[9:11],byteorder='big')
 
-    return stored_images
+    return stored_image
 
 def construct_message(lora_tx_message_ID):
     """
